@@ -1,0 +1,21 @@
+import pickle
+
+from SMC import Posterior
+from Util import creation_data
+
+true_noise_std = 0.05
+sourcespace, data = creation_data(n_data=50, noise_std=true_noise_std)
+with open('save_folder/data.pkl', 'wb') as f:
+    pickle.dump([sourcespace, data], f)
+
+post = Posterior(num_evolution=None, mean_evolution=True, std_evolution=True,
+                 amp_evolution=True, noise_evolution=False, sequence_evolution=None,
+                 mh_evolution=False, sourcespace=sourcespace, data=data,
+                 max_exp=1, n_particles=100, max_num=10, noise_std_eff=true_noise_std / 2,
+                 lam=0.25, prior_m=[-5, 5], prior_s=[0.1, 10], prior_a=[1, 0.25], prior_n=[2, 4],
+                 prop_method=True)
+
+post = post.perform_smc()
+
+with open('save_folder/posterior.pkl', 'wb') as f:
+    pickle.dump(post, f)
