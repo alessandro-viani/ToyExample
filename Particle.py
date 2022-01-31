@@ -1,3 +1,9 @@
+# -*- coding: utf-8 -*-
+
+# Author: Alessandro Viani <viani@dima.unige.it>
+#
+# License: BSD (3-clause)
+
 import copy
 from random import randint
 
@@ -10,11 +16,65 @@ from Util import log_normal
 
 
 class Particle(object):
-    def __init__(self, num, noise_std_eff=None, num_evolution=None,
-                 mean_evolution=True, std_evolution=True,
-                 amp_evolution=True, noise_evolution=False,
-                 lam=0.25, prior_m=[-5, 5], prior_s=[0.1, 10], prior_a=[1, 0.25], prior_n=[2, 4]):
-        self.num = num
+    """Single Particle class for SMC samplers.
+
+       Parameters
+       ----------
+       n_gaus : :py:class:`int`
+           The number of gaussian in the particle.
+       noise_std_eff : :py:class:`double`
+           The estimated noise standard deviation.
+       num_evolution : :py:class:`None or int`
+           None: the number is one of the parameters to be estimated,
+           int: it represents the fixed number of gaussian for each particle.
+       mean_evolution : :py:class:`bool`
+           True: the mean is one of the parameters to be estimated,
+           False: the mean is fixed as the true mean value [works with one gaussian only].
+       std_evolution : :py:class:`bool`
+           True: the standard deviation is one of the parameters to be estimated,
+           False: the standard deviation is fixed as the true standard deviation value [works with one gaussian only].
+       amp_evolution : :py:class:`bool`
+           True: the amplitude is one of the parameters to be estimated,
+           False: the amplitude is fixed as the true amplitude value [works with one gaussian only].
+       noise_evolution : :py:class:`bool`
+           True: the noise standard deviation is one of the parameters to be estimated,
+           False: the noise standard deviation is fixed as the estimated noise standard deviation value.
+       prior_num : :py:class:`double`
+           The mean for the poisson prior on the gaussian number.
+       prior_m : :py:class:`np.array([double, double])`
+           The interval prior parameters for the uniform prior on gaussian mean.
+       prior_s : :py:class:`np.array([double, double])`
+           The interval prior parameters for the log-uniform prior on gaussian standard deviation.
+       prior_a : :py:class:`np.array([double, double])`
+           The mean and standard deviation prior parameters for the normal prior on gaussian amplitude.
+       prior_n : :py:class:`np.array([double, double])`
+           The shape and scale parameters prior parameters for the gamma prior on noise standard deviation.
+
+        Attributes
+        ----------
+       noise_std : :py:class:`double`
+           The noise standard deviation sampled if noise_evolution is True,
+           or the noise standard deviation estimated if noise_evolution is False.
+       q_death : :py:class:`double`
+           The probability of gaussian death.
+       q_birth : :py:class:`double`
+           The probability of gaussian birth.
+       gaussian : :py:class:`np.array([Gaussian])`
+           The array containing particle gaussians.
+       like : :py:class:`double`
+           The likelihood of the particle.
+       prior : :py:class:`double`
+           The prior of the particle.
+       weight : :py:class:`double`
+           The weight of the particle.
+       weight_unnorm : :py:class:`double`
+           The weight un-normalized of the particle
+           [useless if the particle is alone, but useful for performing SMC samplers].
+       """
+    def __init__(self, n_gaus=None, noise_std_eff=None,
+                 num_evolution=None, mean_evolution=True, std_evolution=True, amp_evolution=True, noise_evolution=False,
+                 prior_num=None, prior_m=None, prior_s=None, prior_a=None, prior_n=None):
+        self.n_gaus = n_gaus
         self.noise_std_eff = noise_std_eff
 
         self.num_evolution = num_evolution
@@ -23,27 +83,24 @@ class Particle(object):
         self.amp_evolution = amp_evolution
         self.noise_evolution = noise_evolution
 
-        self.lam = lam
+        self.prior_num = prior_num
         self.prior_m = prior_m
         self.prior_s = prior_s
         self.prior_a = prior_a
         self.prior_n = prior_n
 
         self.noise_std = self.inizialize_noise_std()
-
         self.q_death = 1 / 10
         self.q_birth = 1 - self.q_death
-
         self.gaussian = []
-        for j in range(self.num):
-            self.gaussian = np.append(self.gaussian,
-                                      Gaussian(self.inizialize_mean(),
-                                               self.inizialize_std(),
-                                               self.inizialize_amp()))
+        for _ in range(self.n_gaus):
+            self.gaussian = np.append(self.gaussian, Gaussian(self.inizialize_mean(),
+                                                              self.inizialize_std(),
+                                                              self.inizialize_amp()))
         self.like = 1
+        self.prior = self.evaluation_prior()
         self.weight = None
         self.weight_unnorm = 1
-        self.prior = self.evaluation_prior()
 
     def evaluation_prior(self):
         prior = 1
@@ -55,14 +112,14 @@ class Particle(object):
             if self.amp_evolution:
                 prior *= self.amp_prior(_g.amp)
         if self.num_evolution is None:
-            prior *= self.num_prior(self.num)
+            prior *= self.num_prior(self.n_gaus)
         if self.noise_evolution:
             prior *= self.noise_prior(self.noise_std)
 
         return prior
 
     def num_prior(self, x):
-        return poisson.pmf(x, self.lam)
+        return poisson.pmf(x, self.prior_num)
 
     def mean_prior(self, x):
         prior = 0
@@ -82,23 +139,15 @@ class Particle(object):
     def noise_prior(self, x):
         return stats.gamma.pdf(x, a=self.prior_n[0], scale=self.noise_std_eff * self.prior_n[1])
 
-    def evaluation_likelihood_mean(self, sourcespace):
-        like_mean = 0
-        for _g in self.gaussian:
-            like_mean += _g.amp * np.exp(log_normal(sourcespace, _g.mean, _g.std))
-        return like_mean
-
-    def evaluation_likelihood_std(self):
-        return self.noise_std
-
     def evaluation_likelihood(self, sourcespace, data, exponent_like):
         likelihood = 1
         if exponent_like > 0:
             log_likelihood = 0
             for idx, _d in enumerate(data):
-                like_mean = self.evaluation_likelihood_mean(sourcespace[idx])
-                like_std = self.evaluation_likelihood_std()
-                log_likelihood += log_normal(_d, like_mean, like_std)
+                like_mean = 0
+                for _g in self.gaussian:
+                    like_mean += _g.amp * np.exp(log_normal(sourcespace[idx], _g.mean, _g.std))
+                log_likelihood += log_normal(_d, like_mean, self.noise_std)
 
             likelihood = np.exp(exponent_like * log_likelihood)
 
@@ -143,14 +192,14 @@ class Particle(object):
         proposal_particle = copy.deepcopy(self)
         birth_death = np.random.rand()
 
-        if birth_death <= self.q_birth and self.num < post.max_num:
+        if birth_death <= self.q_birth and self.n_gaus < post.max_num:
             proposal_particle.gaussian = np.append(proposal_particle.gaussian,
                                                    Gaussian(proposal_particle.inizialize_mean(),
                                                             proposal_particle.inizialize_std(),
                                                             proposal_particle.inizialize_amp()))
 
-            jacobian = proposal_particle.jacobian_evaluation(proposal_particle.gaussian[proposal_particle.num].std)
-            proposal_particle.num += 1
+            jacobian = proposal_particle.jacobian_evaluation(proposal_particle.gaussian[proposal_particle.n_gaus].std)
+            proposal_particle.n_gaus += 1
 
             proposal_particle.like = proposal_particle.evaluation_likelihood(post.sourcespace, post.data,
                                                                              post.exponent_like[-1])
@@ -159,12 +208,12 @@ class Particle(object):
             rapp_prior = proposal_particle.prior / self.prior
             rapp_proposal = self.q_death / self.q_birth
 
-        elif birth_death > 1 - self.q_death and self.num > 0:
-            guassian_to_die = randint(0, self.num - 1)
+        elif birth_death > 1 - self.q_death and self.n_gaus > 0:
+            guassian_to_die = randint(0, self.n_gaus - 1)
             proposal_particle.gaussian = np.delete(proposal_particle.gaussian, guassian_to_die)
 
             jacobian = 1 / self.jacobian_evaluation(self.gaussian[guassian_to_die].std)
-            proposal_particle.num -= 1
+            proposal_particle.n_gaus -= 1
 
             proposal_particle.like = proposal_particle.evaluation_likelihood(post.sourcespace, post.data,
                                                                              post.exponent_like[-1])
@@ -173,7 +222,7 @@ class Particle(object):
             rapp_prior = proposal_particle.prior / self.prior
             rapp_proposal = self.q_birth / self.q_death
 
-        if proposal_particle.num != self.num:
+        if proposal_particle.n_gaus != self.n_gaus:
             rapp_like = proposal_particle.like / self.like
 
             if np.random.rand() < min([rapp_prior * rapp_like * rapp_proposal * jacobian, 1]):
@@ -213,7 +262,7 @@ class Particle(object):
 
     def mh_std(self, post):
         proposal_particle = copy.deepcopy(self)
-        for i in range(proposal_particle.num):
+        for i in range(proposal_particle.n_gaus):
             proposal_particle.gaussian[i].std = self.std_proposal_value(self.gaussian[i].std)
 
             proposal_particle.like = proposal_particle.evaluation_likelihood(post.sourcespace, post.data,
@@ -237,7 +286,7 @@ class Particle(object):
 
     def mh_amp(self, post):
         proposal_particle = copy.deepcopy(self)
-        for i in range(0, proposal_particle.num):
+        for i in range(0, proposal_particle.n_gaus):
             proposal_particle.gaussian[i].amp = self.amp_proposal_value(self.gaussian[i].amp)
 
             proposal_particle.like = proposal_particle.evaluation_likelihood(post.sourcespace, post.data,

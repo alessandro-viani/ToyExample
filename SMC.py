@@ -1,3 +1,9 @@
+# -*- coding: utf-8 -*-
+
+# Author: Alessandro Viani <viani@dima.unige.it>
+#
+# License: BSD (3-clause)
+
 import copy
 import time
 
@@ -8,64 +14,136 @@ from Util import sequence_of_exponents
 
 
 class Posterior(object):
-    def __init__(self, num_evolution=None, mean_evolution=True, std_evolution=True,
-                 amp_evolution=True, noise_evolution=False, sequence_evolution=True,
-                 mh_evolution=False, sourcespace=None, data=None,
-                 max_exp=1, n_particles=100, max_num=3, noise_std_eff=None,
-                 lam=0.25, prior_m=[-5, 5], prior_s=[0.1, 10], prior_a=[1, 0.25], prior_n=[2, 4], prop_method=True):
+    """Single Particle class for SMC samplers.
 
-        self.prop_method = prop_method
+       Parameters
+       ----------
+       n_particles : :py:class:`int`
+           The number of particles for performing SMC samplers.
+       noise_std_eff : :py:class:`double`
+           The estimated noise standard deviation.
+       num_evolution : :py:class:`None or int`
+           None: the number is one of the parameters to be estimated,
+           int: it represents the fixed number of gaussian for each particle.
+       mean_evolution : :py:class:`bool`
+           True: the mean is one of the parameters to be estimated,
+           False: the mean is fixed as the true mean value [works with one gaussian only].
+       std_evolution : :py:class:`bool`
+           True: the standard deviation is one of the parameters to be estimated,
+           False: the standard deviation is fixed as the true standard deviation value [works with one gaussian only].
+       amp_evolution : :py:class:`bool`
+           True: the amplitude is one of the parameters to be estimated,
+           False: the amplitude is fixed as the true amplitude value [works with one gaussian only].
+       noise_evolution : :py:class:`bool`
+           True: the noise standard deviation is one of the parameters to be estimated,
+           False: the noise standard deviation is fixed as the estimated noise standard deviation value.
+
+       sequence_evolution : :py:class:`None or int`
+           None: exponent of the sequence are adaptively chosen,
+           int: number of iterations of Importance sampling.
+       mh_evolution : :py:class:`bool`
+           True: Metropolis-Hastings steps are adaptively chosen,
+           False: one Metropolis-Hastings step is performed at each iteration.
+       prop_method : :py:class:`bool`
+           True: at the last iteration particle recycling is performed,
+           False: no recycle scheme is performed.
+       sourcespace : :py:class:`np.array([double])`
+           Grid of x-axes points where data are collected.
+       data : :py:class:`np.array([double])`
+           Noisy samples form the sum of weighted gaussian functions.
+       max_exp : :py:class:`int`
+           Maximum exponent reached during the SMC samplers iterations.
+       max_num : :py:class:`int`
+           Maximum number of gaussian allowed in each particle.
+
+       prior_num : :py:class:`double`
+           The mean for the poisson prior on the gaussian number.
+       prior_m : :py:class:`np.array([double, double])`
+           The interval prior parameters for the uniform prior on gaussian mean.
+       prior_s : :py:class:`np.array([double, double])`
+           The interval prior parameters for the log-uniform prior on gaussian standard deviation.
+       prior_a : :py:class:`np.array([double, double])`
+           The mean and standard deviation prior parameters for the normal prior on gaussian amplitude.
+       prior_n : :py:class:`np.array([double, double])`
+           The shape and scale parameters prior parameters for the gamma prior on noise standard deviation.
+
+        Attributes
+        ----------
+       ess : :py:class:`np.array([double])`
+           The noise standard deviation sampled if noise_evolution is True,
+           or the noise standard deviation estimated if noise_evolution is False.
+       q_death : :py:class:`double`
+           The probability of gaussian death.
+       q_birth : :py:class:`double`
+           The probability of gaussian birth.
+       gaussian : :py:class:`np.array([Gaussian])`
+           The array containing particle gaussians.
+       like : :py:class:`double`
+           The likelihood of the particle.
+       prior : :py:class:`double`
+           The prior of the particle.
+       weight : :py:class:`double`
+           The weight of the particle.
+       weight_unnorm : :py:class:`double`
+           The weight un-normalized of the particle
+           [useless if the particle is alone, but useful for performing SMC samplers].
+       """
+    def __init__(self, n_particles=None, noise_std_eff=None,
+                 num_evolution=None, mean_evolution=True, std_evolution=True, amp_evolution=True, noise_evolution=False,
+                 sequence_evolution=None, mh_evolution=False , prop_method=True,
+                 sourcespace=None, data=None, max_exp=None, max_num=None,
+                 prior_num=None, prior_m=None, prior_s=None, prior_a=None, prior_n=None):
+
+        self.n_particles = n_particles
+        self.noise_std_eff = noise_std_eff
         self.num_evolution = num_evolution
         self.mean_evolution = mean_evolution
         self.std_evolution = std_evolution
         self.amp_evolution = amp_evolution
-
         self.noise_evolution = noise_evolution
-
         self.sequence_evolution = sequence_evolution
         self.mh_evolution = mh_evolution
-
-        self.lam = lam
+        self.prop_method = prop_method
+        self.sourcespace = sourcespace
+        self.data = data
+        self.max_exp = max_exp
+        self.max_num = max_num
+        self.prior_num = prior_num
         self.prior_m = prior_m
         self.prior_s = prior_s
         self.prior_a = prior_a
         self.prior_n = prior_n
 
-        self.sourcespace = sourcespace
-        self.data = data
-
-        self.max_exp = max_exp
-        self.n_particles = n_particles
-        self.max_num = max_num
-        if self.sequence_evolution is None:
-            self.exponent_like = np.array([0, 0])
-        else:
-            self.exponent_like = sequence_of_exponents(self.sequence_evolution, self.max_exp)
-
-        self.noise_std_eff = noise_std_eff
-
+        self.exponent_like = np.array([0, 0])
         self.ess = self.n_particles
         self.norm_cost = self.n_particles
-
         self.mod_sel = []
         self.all_particles = []
         self.all_weights_unnorm = []
         self.all_weights = []
-
-        self.particle = np.array([Particle(num=self.inizialize_num(), noise_std_eff=self.noise_std_eff,
-                                           num_evolution=self.num_evolution,
-                                           mean_evolution=self.mean_evolution, std_evolution=self.std_evolution,
-                                           amp_evolution=self.amp_evolution, noise_evolution=self.noise_evolution,
-                                           lam=self.lam,
-                                           prior_m=self.prior_m,
-                                           prior_s=self.prior_s,
-                                           prior_a=self.prior_a,
-                                           prior_n=self.prior_n)
-                                  for i in range(0, self.n_particles)])
+        self.particle = np.array([Particle(n_gaus=self.initialise_num(), noise_std_eff=self.noise_std_eff,
+                                           num_evolution=self.num_evolution, mean_evolution=self.mean_evolution,
+                                           std_evolution=self.std_evolution, amp_evolution=self.amp_evolution,
+                                           noise_evolution=self.noise_evolution,
+                                           prior_num=self.prior_num, prior_m=self.prior_m, prior_s=self.prior_s,
+                                           prior_a=self.prior_a, prior_n=self.prior_n)
+                                  for _ in range(0, self.n_particles)])
         for _p in self.particle:
             _p.weight = 1 / self.n_particles
 
-    def inizialize_num(self):
+        self.est_num = None
+        self.all_noise_std = None
+        self.n_iter = None
+        self.est_num_avg = None
+        self.noise_posterior = None
+        self.particle_avg = []
+        self.vector_mean = []
+        self.vector_std = []
+        self.vector_amp = []
+        self.vector_noise_std = []
+        self.vector_weight = []
+
+    def initialise_num(self):
         if self.num_evolution is None:
             num = np.random.poisson(0.25)
             while num > self.max_num:
@@ -170,7 +248,7 @@ class Posterior(object):
     def online_estimates(self):
         mod_sel = np.zeros(self.max_num + 1)
         for i in range(0, len(self.particle)):
-            mod_sel[self.particle[i].num] += self.particle[i].weight
+            mod_sel[self.particle[i].n_gaus] += self.particle[i].weight
 
         return mod_sel
 
@@ -204,13 +282,11 @@ class Posterior(object):
             diff = 1
             while diff > 1e-2:
                 self = self.metropolis_hastings()
-                if self.sequence_evolution is None:
-                    self.exponent_like = np.append(self.exponent_like, self.evolution_exponent())
+                self.exponent_like = np.append(self.exponent_like, self.evolution_exponent())
                 if n > 1 and self.mh_evolution:
-                    particle_aux_is = copy.deepcopy(self.particle)
-                    old_norm_cost = self.norm_cost[n + 1]
-                    self = 1  # importance_sampling(particle_aux_is, self)
-                    diff = abs(self.norm_cost[n + 1] - old_norm_cost) / old_norm_cost
+                    post_aux = copy.deepcopy(self)
+                    post_aux = post_aux.importance_sampling(post_aux.exponent_like[-1])
+                    diff = abs(post_aux.norm_cost[-1] - self.norm_cost[-1]) / self.norm_cost[-1]
                 else:
                     diff = 0
                     self = self.importance_sampling(self.exponent_like[-1])
@@ -218,7 +294,7 @@ class Posterior(object):
             self = self.store_iteration()
             print(f'iter:{n} -- exp: {self.exponent_like[n]} -- est num: {np.argmax(self.mod_sel[n][:])}')
             if self.mh_evolution:
-                self.particle = copy.deepcopy(particle_aux_is)
+                self = copy.deepcopy(post_aux)
             n += 1
         self.n_iter = n
         self.vector_post()
@@ -244,12 +320,8 @@ class Posterior(object):
             delta_std[i - 1] = abs(noise_std_sample[i - 2] - noise_std_sample[i])
 
         weight = self.all_weights[2:, :]
-
-        self.particle_avg = []
         integral_weight_u = []
 
-        weight_upgrade = np.zeros(n_iter - 2)
-        k = np.zeros(n_iter - 2)
         prior = self.particle[0].noise_prior(self.all_noise_std)
         k = np.power(np.power(2 * np.pi * np.square(self.noise_std_eff), exponent_like - 1) * exponent_like,
                      self.data.shape[0] / 2)
@@ -269,25 +341,20 @@ class Posterior(object):
 
         mod_sel_avg = np.zeros(self.max_num + 1)
         for i in range(0, len(self.particle_avg)):
-            mod_sel_avg[self.particle_avg[i].num] += self.particle_avg[i].weight
+            mod_sel_avg[self.particle_avg[i].n_gaus] += self.particle_avg[i].weight
 
         self.est_num_avg = np.argmax(mod_sel_avg)
 
         return self
 
     def vector_post(self):
-        self.vector_mean = []
-        self.vector_std = []
-        self.vector_amp = []
-        self.vector_noise_std = []
-        self.vector_weight = []
         for _p in self.particle:
-            for j in range(_p.num):
+            for j in range(_p.n_gaus):
                 self.vector_mean.append(_p.gaussian[j].mean)
                 self.vector_std.append(_p.gaussian[j].std)
                 self.vector_amp.append(_p.gaussian[j].amp)
                 self.vector_noise_std.append(_p.noise_std)
-                self.vector_weight.append(_p.weight / _p.num)
+                self.vector_weight.append(_p.weight / _p.n_gaus)
 
     def store_iteration(self):
         self.all_particles = np.concatenate((self.all_particles, [self.particle]), axis=0)

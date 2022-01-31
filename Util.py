@@ -1,7 +1,26 @@
 import math as mat
 import numpy as np
 import scipy.stats as stats
+from numba import jit
 
+
+
+def evaluation_likelihood_slow(part, sourcespace, data, exponent_like):
+    likelihood = 1
+    if exponent_like > 0:
+        log_likelihood = 0
+        for idx, _d in enumerate(data):
+            like_mean = 0
+            for _g in part.gaussian:
+                like_mean += _g.amp * np.exp(log_normal(sourcespace[idx], _g.mean, _g.std))
+            log_likelihood += log_normal(_d, like_mean, part.noise_std)
+
+        likelihood = np.exp(exponent_like * log_likelihood)
+
+    return likelihood
+
+def evaluation_likelihood(part, sourcespace, data, exponent_like):
+    return jit(part, sourcespace, data, exponent_like)(evaluation_likelihood_slow)
 
 def log_normal(x, mean, std):
     return -np.log(mat.sqrt(2 * np.pi) * std) - 0.5 * np.square((x - mean) / std)
@@ -60,7 +79,7 @@ def error_parameters(particle, interval_mean, interval_std, interval_amp, n_bins
         single_gaussian = []
         weigth_single_gaussian = []
         for _p in particle:
-            if _p.num == est_num:
+            if _p.n_gaus == est_num:
                 single_gaussian = np.append(single_gaussian, _p.gaussian[0])
                 weigth_single_gaussian = np.append(weigth_single_gaussian, _p.weight)
 
@@ -121,7 +140,7 @@ def error_parameters(particle, interval_mean, interval_std, interval_amp, n_bins
         weigth_two_gaussian_2 = []
 
         for _p in particle:
-            if _p.num == est_num:
+            if _p.n_gaus == est_num:
                 for i in range(int(est_num)):
                     if _p.gaussian[i].mean <= 0:
                         first_gaussian = np.append(first_gaussian, _p.gaussian[i])

@@ -1,3 +1,9 @@
+# -*- coding: utf-8 -*-
+
+# Author: Alessandro Viani <viani@dima.unige.it>
+#
+# License: BSD (3-clause)
+
 import pickle
 
 import numpy as np
