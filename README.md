@@ -6,10 +6,13 @@ This repository contains an example of an inverse problem where the aim is to re
 <img src="https://latex.codecogs.com/svg.latex?\large&space;\varepsilon\sim\mathcal{N}(0,\theta)." title="\large \varepsilon\sim\mathcal{N}(0,\theta)." />
 
 We assume observations are available on a given set of points and we want to make inference on the following parameters: 
-- number of Gaussian functions: d
-- mean of each Gaussian: \mu
-- standard deviation of each Gaussian: \sigma
-- amplitude of each Gaussian: a
+- number of Gaussian functions: _d_
+- mean of each Gaussian: μ
+- standard deviation of each Gaussian: σ
+- amplitude of each Gaussian: _a_
+
+![data](https://user-images.githubusercontent.com/57596360/152046064-384f1238-20b2-49eb-9f4e-cc01c37be279.png)
+> The image shows an example of data used as blue dots and the forward model as a gray line.
 
 Since the number of unknowns is itself unknown, the state space is defined as the finite union of fixed dimensional spaces, each one referring to a fixed number of objects. For these class of spaces SMC samplers can be applied using different strategies: in some cases, a different SMC sampler is run for each model, and the normalizing constants are used to compare models; in other cases,  variable-dimension models have been used, so that the dimension of the sample can change from one step to the next one. 
 
@@ -40,22 +43,15 @@ Moreover we assume independence between data, obtaining a simple factorization f
 > Text that is a quote
 > This site was built using [GitHub Pages](https://pages.github.com/).
 
-![This is an image](https://myoctocat.com/assets/images/base-octocat.svg)
-
 1. First list item
    - First nested list item
      - Second nested list item
 
-
-
 ## Plot file
 
 Here is a simple footnote[^1].
-
 A footnote can also have multiple lines[^2].  
-
 You can also use words, to fit your writing style more closely[^note].
-
 [^1]: My reference.
 [^2]: Every new line should be prefixed with 2 spaces.  
   This allows you to have a footnote with multiple lines.
