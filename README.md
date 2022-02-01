@@ -37,6 +37,9 @@ Moreover we assume independence between data, obtaining a simple factorization f
 <img src="https://latex.codecogs.com/svg.latex?\large&space;p^{\theta}(y\mid\textit{x})=\prod_{j=1}^Bp^{\theta}(y_j\mid\textit{d},\mu_{1:d},\sigma_{1:d},a_{1:d})" title="\large p^{\theta}(y\mid\textit{x})=\prod_{j=1}^Bp^{\theta}(y_j\mid\textit{d},\mu_{1:d},\sigma_{1:d},a_{1:d})"/>
 
 
+![plot_marginals](https://user-images.githubusercontent.com/57596360/152060533-a6278473-1fbb-430c-8c1e-89345d9d841c.png)
+> The image shows an example of data used as blue dots and the forward model as a gray line.
+
 ## Main file
 
 **This is bold text**
