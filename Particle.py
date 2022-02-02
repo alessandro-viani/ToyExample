@@ -9,7 +9,6 @@ from random import randint
 
 import numpy as np
 import scipy.stats as stats
-from scipy.stats import poisson
 
 from Gaussian import Gaussian
 from Util import log_normal
@@ -121,7 +120,7 @@ class Particle(object):
         return prior
 
     def num_prior(self, x):
-        return poisson.pmf(x, self.prior_num)
+        return stats.poisson.pmf(x, self.prior_num)
 
     def mean_prior(self, x):
         prior = 0
