@@ -85,7 +85,7 @@ The main file contains all nedeed for running the code setting the parameters of
 
 Contains all utilities used in the Classes: Particle and Posterior
 
-## PerformanceAnalysis
+## Analysis
 
 This file contains all needed for performing analysis on the proposed method against the classical one. The parameters to choos at first are:
 
