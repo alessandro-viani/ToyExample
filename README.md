@@ -1,3 +1,27 @@
+## Required include
+
+import copy
+import time
+import numpy as np
+import math as mat
+import pickle
+
+import scipy.stats as stats
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+from matplotlib.pyplot import figure
+
+
+import copy
+from random import randint
+
+from scipy.stats import poisson
+
+from Gaussian import Gaussian
+from Util import log_normal
+
+
 # ToyExample
 This repository contains an example of an inverse problem where the aim is to reconstruct the parameters of an unknown number of weighted Gaussian functions, given noisy measurements of their superposition, i.e.
 
@@ -93,3 +117,5 @@ This file contains all needed for performing analysis on the proposed method aga
 - noise_range: range for the uniform distributed noise standard deviation for creating the data
 - n_data: number of data to use in each simulation
 - n_particles: number of particles to use in each run for both proposed and classical method
+
+> warning: use a high enought number of particles and data in this section, at least _n_data>50_ and _n_particles>50_ and a noise standard deviation range within _[0.01, 0.5]_
