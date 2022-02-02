@@ -13,12 +13,13 @@ from SMC import Posterior
 from Util import creation_data, analytics
 
 n_file = 100
+noise_range = [0.02, 0.1]
 n_data = 100
 n_particles = 1000
+
 kl_div = np.zeros(n_file)
 folder_name = 'save_folder/'
-noise_std = np.sort(0.1 - (0.1 - 0.02) * np.random.rand(n_file))
-
+noise_std = np.sort(noise_range[1] - (noise_range[1] - noise_range[0]) * np.random.rand(n_file))
 for idx, _n in enumerate(noise_std):
     sourcespace, data = creation_data(n_data=n_data, noise_std=_n)
     with open(f'{folder_name}data_{idx}.pkl', 'wb') as f:
