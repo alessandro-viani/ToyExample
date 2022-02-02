@@ -72,6 +72,7 @@ class Particle(object):
            The weight un-normalized of the particle
            [useless if the particle is alone, but useful for performing SMC samplers].
        """
+
     def __init__(self, n_gaus=None, noise_std_eff=None,
                  num_evolution=None, mean_evolution=True, std_evolution=True, amp_evolution=True, prop_method=False,
                  prior_num=None, prior_m=None, prior_s=None, prior_a=None, prior_n=None):
@@ -165,7 +166,7 @@ class Particle(object):
             return 1
         else:
             return self.prior_s[1] ** (
-                        np.log10(self.prior_s[0]) + np.log10(self.prior_s[1] / self.prior_s[0]) * np.random.rand())
+                    np.log10(self.prior_s[0]) + np.log10(self.prior_s[1] / self.prior_s[0]) * np.random.rand())
 
     def inizialize_amp(self):
         if not self.amp_evolution:

@@ -10,13 +10,13 @@ import numpy as np
 import scipy.stats as stats
 
 from SMC import Posterior
-from Util import creation_data
+from Util import creation_data, analytics
 
-n_file = 1
-n_data = 20
-n_particles = 10
+n_file = 100
+n_data = 100
+n_particles = 1000
 kl_div = np.zeros(n_file)
-folder_name = 'performance_analysis/'
+folder_name = 'save_folder/'
 noise_std = np.sort(0.1 - (0.1 - 0.02) * np.random.rand(n_file))
 
 for idx, _n in enumerate(noise_std):
@@ -44,6 +44,10 @@ for idx, _n in enumerate(noise_std):
     post_clas = post_clas.perform_smc()
     post_clas.noise_posterior = stats.gaussian_kde(post_clas.vector_noise_std,
                                                    weights=post_clas.vector_weight).pdf(post_prop.all_noise_std)
+    post_clas.noise_posterior /= np.sum(post_clas.noise_posterior)
 
     with open(f'{folder_name}posterior_classical_{idx}.pkl', 'wb') as f:
         pickle.dump(post_clas, f)
+
+analytics(n_file=n_file, interval_mean=[-5, 5], interval_std=[0.1, 10], interval_amp=[0, 10], n_bins=300,
+          folder_name=folder_name)
