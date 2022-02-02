@@ -456,6 +456,6 @@ class Posterior(object):
 
         fig.tight_layout()
         fig.savefig('fig/plot_marginals.png', format='png', dpi=dpi)
-        plt.show()
+        plt.close()
 
         return 0
