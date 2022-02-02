@@ -11,7 +11,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.stats as stats
 import seaborn as sns
-from matplotlib.pyplot import figure
 
 from Particle import Particle
 from Util import sequence_of_exponents
@@ -385,7 +384,7 @@ class Posterior(object):
         return self
 
     def plot_data(self, linewidth=2, linestyle='-', color='k', alpha=0.6, dpi=1000):
-        figure(figsize=(16, 9), dpi=100)
+        plt.figure(figsize=(16, 9), dpi=100)
         x = np.linspace(-5, 5, 1000)
         y = 0.7 * stats.norm.pdf(x, -2, 1) + 0.3 * stats.norm.pdf(x, 2, 0.5)
         plt.plot(self.sourcespace, self.data, '.', color='#1f77b4', markersize=7)
