@@ -14,9 +14,15 @@
 # ToyExample
 This repository contains an example of an inverse problem where the aim is to reconstruct the parameters of an unknown number of weighted Gaussian functions, given noisy measurements of their superposition, i.e.
 
+<p align="center">
+
 <img src="https://latex.codecogs.com/svg.latex?&space;y_k=\sum_{i=1}^da_{i}\mathcal{N}_{\tau_k}(\mu_{i},\sigma_{i})+\varepsilon" title="y_k=\sum_{i=1}^da_{i}\mathcal{N}_{\tau_k}(\mu_{i},\sigma_{i})+\varepsilon" />
+</p>
+
+<p align="center">
 
 <img src="https://latex.codecogs.com/svg.latex?&space;\varepsilon\sim\mathcal{N}(0,\theta)." title="\varepsilon\sim\mathcal{N}(0,\theta)." />
+</p>
 
 We assume observations are available on a given set of points and we want to make inference on the following parameters: 
 - number of Gaussian functions: _d_
@@ -24,8 +30,11 @@ We assume observations are available on a given set of points and we want to mak
 - standard deviation of each Gaussian: σ
 - amplitude of each Gaussian: _a_
 
+<p align="center">
+  
 ![data](https://user-images.githubusercontent.com/57596360/152046064-384f1238-20b2-49eb-9f4e-cc01c37be279.png)
 > The image shows an example of data used as blue dots and the forward model as a gray line.
+</p>
 
 Since the number of unknowns is itself unknown, the state space is defined as the finite union of fixed dimensional spaces, each one referring to a fixed number of objects. For these class of spaces SMC samplers can be applied using different strategies: in some cases, a different SMC sampler is run for each model, and the normalizing constants are used to compare models; in other cases,  variable-dimension models have been used, so that the dimension of the sample can change from one step to the next one. 
 
@@ -35,7 +44,10 @@ In this example we use the second approach, i.e. we construct Reversible Jump Me
 
 We assume that all parameters are a priori independent, so that the prior density turns out to be
 
+<p align="center">
+
 <img src="https://latex.codecogs.com/svg.latex?&space;p(x)=p(d)\prod_{i=1}^{d}p(\mu_i)\prod_{i=1}^{d}p(\sigma_i)\prod_{i=1}^{d}p(a_i)" title="p(x)=p(d)\prod_{i=1}^{d}p(\mu_i)\prod_{i=1}^{d}p(\sigma_i)\prod_{i=1}^{d}p(a_i)" />
+</p>
 
 where:
 
@@ -47,12 +59,16 @@ where:
 
 Moreover we assume independence between data, obtaining a simple factorization for the likelihood
 
+<p align="center">
+  
 <img src="https://latex.codecogs.com/svg.latex?&space;p^{\theta}(y\mid\textit{x})=\prod_{j=1}^Bp^{\theta}(y_j\mid\textit{d},\mu_{1:d},\sigma_{1:d},a_{1:d})" title="p^{\theta}(y\mid\textit{x})=\prod_{j=1}^Bp^{\theta}(y_j\mid\textit{d},\mu_{1:d},\sigma_{1:d},a_{1:d})"/>
 
 
 ![plot_marginals](https://user-images.githubusercontent.com/57596360/152060533-a6278473-1fbb-430c-8c1e-89345d9d841c.png)
 > The image shows an example marginals obtained using the proposed method. Notice that the poterior for the noise standard deviation is not obtained as histogram plot due to the fact that the variable is not sampled but the posterior is approximated during the iteration as explained in [^1].
 
+<\p>
+  
 [^1]: My reference to be added.
 
 
