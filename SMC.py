@@ -7,7 +7,11 @@
 import copy
 import time
 
+import matplotlib.pyplot as plt
 import numpy as np
+import scipy.stats as stats
+import seaborn as sns
+from matplotlib.pyplot import figure
 
 from Particle import Particle
 from Util import sequence_of_exponents
@@ -34,19 +38,16 @@ class Posterior(object):
        amp_evolution : :py:class:`bool`
            True: the amplitude is one of the parameters to be estimated,
            False: the amplitude is fixed as the true amplitude value [works with one gaussian only].
-       noise_evolution : :py:class:`bool`
+       prop_method : :py:class:`bool`
            True: the noise standard deviation is one of the parameters to be estimated,
-           False: the noise standard deviation is fixed as the estimated noise standard deviation value.
-
+           False: the noise standard deviation is fixed as the estimated noise standard deviation value and at the very
+                  last iteration recycle scheme and noise posterior are estimated using the proposed method.
        sequence_evolution : :py:class:`None or int`
            None: exponent of the sequence are adaptively chosen,
            int: number of iterations of Importance sampling.
        mh_evolution : :py:class:`bool`
            True: Metropolis-Hastings steps are adaptively chosen,
            False: one Metropolis-Hastings step is performed at each iteration.
-       prop_method : :py:class:`bool`
-           True: at the last iteration particle recycling is performed,
-           False: no recycle scheme is performed.
        sourcespace : :py:class:`np.array([double])`
            Grid of x-axes points where data are collected.
        data : :py:class:`np.array([double])`
@@ -55,7 +56,6 @@ class Posterior(object):
            Maximum exponent reached during the SMC samplers iterations.
        max_num : :py:class:`int`
            Maximum number of gaussian allowed in each particle.
-
        prior_num : :py:class:`double`
            The mean for the poisson prior on the gaussian number.
        prior_m : :py:class:`np.array([double, double])`
@@ -70,8 +70,8 @@ class Posterior(object):
         Attributes
         ----------
        ess : :py:class:`np.array([double])`
-           The noise standard deviation sampled if noise_evolution is True,
-           or the noise standard deviation estimated if noise_evolution is False.
+           The noise standard deviation sampled if prop_method is True,
+           or the noise standard deviation estimated if prop_method is False.
        q_death : :py:class:`double`
            The probability of gaussian death.
        q_birth : :py:class:`double`
@@ -88,9 +88,10 @@ class Posterior(object):
            The weight un-normalized of the particle
            [useless if the particle is alone, but useful for performing SMC samplers].
        """
+
     def __init__(self, n_particles=None, noise_std_eff=None,
-                 num_evolution=None, mean_evolution=True, std_evolution=True, amp_evolution=True, noise_evolution=False,
-                 sequence_evolution=None, mh_evolution=False , prop_method=True,
+                 num_evolution=None, mean_evolution=True, std_evolution=True, amp_evolution=True, prop_method=False,
+                 sequence_evolution=None, mh_evolution=False,
                  sourcespace=None, data=None, max_exp=None, max_num=None,
                  prior_num=None, prior_m=None, prior_s=None, prior_a=None, prior_n=None):
 
@@ -100,10 +101,9 @@ class Posterior(object):
         self.mean_evolution = mean_evolution
         self.std_evolution = std_evolution
         self.amp_evolution = amp_evolution
-        self.noise_evolution = noise_evolution
+        self.prop_method = prop_method
         self.sequence_evolution = sequence_evolution
         self.mh_evolution = mh_evolution
-        self.prop_method = prop_method
         self.sourcespace = sourcespace
         self.data = data
         self.max_exp = max_exp
@@ -124,7 +124,7 @@ class Posterior(object):
         self.particle = np.array([Particle(n_gaus=self.initialise_num(), noise_std_eff=self.noise_std_eff,
                                            num_evolution=self.num_evolution, mean_evolution=self.mean_evolution,
                                            std_evolution=self.std_evolution, amp_evolution=self.amp_evolution,
-                                           noise_evolution=self.noise_evolution,
+                                           prop_method=self.prop_method,
                                            prior_num=self.prior_num, prior_m=self.prior_m, prior_s=self.prior_s,
                                            prior_a=self.prior_a, prior_n=self.prior_n)
                                   for _ in range(0, self.n_particles)])
@@ -162,7 +162,7 @@ class Posterior(object):
                 self.particle[idx] = self.particle[idx].mh_std(self)
             if self.amp_evolution:
                 self.particle[idx] = self.particle[idx].mh_amp(self)
-            if self.noise_evolution:
+            if self.prop_method:
                 self.particle[idx] = self.particle[idx].mh_noise(self)
         return self
 
@@ -383,3 +383,80 @@ class Posterior(object):
                 _p.weight_unnorm = self.norm_cost[-1] / self.n_particles
 
         return self
+
+    def plot_data(self, linewidth=2, linestyle='-', color='k', alpha=0.6, dpi=1000):
+        figure(figsize=(16, 9), dpi=100)
+        x = np.linspace(-5, 5, 1000)
+        y = 0.7 * stats.norm.pdf(x, -2, 1) + 0.3 * stats.norm.pdf(x, 2, 0.5)
+        plt.plot(self.sourcespace, self.data, '.', color='#1f77b4', markersize=7)
+        plt.plot(x, y, linestyle=linestyle, color=color, linewidth=linewidth, alpha=alpha)
+        plt.savefig('fig/data.png', format='png', dpi=dpi)
+        plt.close()
+
+        return 0
+
+    def plot_marginals(self,
+                       min_mean=-3, max_mean=3, min_std=0, max_std=1.5,
+                       min_amp=0, max_amp=1, alpha=0.5, kde=False, dpi=1000):
+
+        color_map = ['#1f77b4', 'darkorange', 'forestgreen', 'red']
+        color_hist = 0
+        fig, ax = plt.subplots(1, 5, figsize=(15, 5))
+
+        sns.set_style('darkgrid')
+        sns.histplot(x=np.arange(self.max_num + 1), stat='probability', weights=self.mod_sel[-1, :], kde=kde, bins=20,
+                     color=color_map[color_hist], alpha=alpha, ax=ax[0])
+
+        sns.set_style('darkgrid')
+        sns.histplot(x=self.vector_mean, stat='probability', weights=self.vector_weight, kde=kde, bins=100,
+                     color=color_map[color_hist], alpha=alpha, ax=ax[1])
+
+        sns.set_style('darkgrid')
+        sns.histplot(x=self.vector_std, stat='probability', weights=self.vector_weight, kde=kde, bins=300,
+                     color=color_map[color_hist], alpha=alpha, ax=ax[2])
+
+        sns.set_style('darkgrid')
+        sns.histplot(x=self.vector_amp, stat='probability', weights=self.vector_weight, kde=kde, bins=100,
+                     color=color_map[color_hist], alpha=alpha, ax=ax[3])
+
+        if self.prop_method:
+            ax[4].plot(self.all_noise_std, self.noise_posterior, color=color_map[color_hist], alpha=alpha)
+            ax[4].fill_between(self.all_noise_std, self.noise_posterior,
+                               color=color_map[color_hist], alpha=alpha * 0.25)
+        else:
+            sns.set_style('darkgrid')
+            sns.histplot(x=self.vector_noise_std, stat="probability", weights=self.vector_weight, kde=kde, bins=100,
+                         color=color_map[color_hist], alpha=alpha, ax=ax[4])
+
+        ax[0].set_xlabel(r'$d$')
+        ax[0].set_ylim(top=1)
+        ax[0].set_xlim([0, 3])
+        plt.sca(ax[0])
+        plt.xticks([0, 1, 2, 3])
+
+        ax[1].set_xlabel(r'$\mu$')
+        ax[1].set_xlim([min_mean, max_mean])
+        plt.sca(ax[1])
+        plt.xticks([-2, 0, 2])
+
+        ax[2].set_xlim([min_std, max_std])
+        ax[2].set_xlabel(r'$\sigma$')
+        plt.sca(ax[2])
+        plt.xticks([0.5, 1])
+
+        ax[3].set_xlim([min_amp, max_amp])
+        ax[3].set_xlabel(r'$amp$')
+        plt.sca(ax[3])
+        plt.xticks([0.3, 0.7])
+
+        ax[4].set_title(r'$p(\theta\mid y)$')
+        ax[4].set_xlim([self.noise_std_eff, 2 * self.noise_std_eff])
+        ax[4].set_ylim([-1e-3, np.max(self.noise_posterior)])
+        plt.sca(ax[4])
+        plt.xticks([self.noise_std_eff, 2 * self.noise_std_eff, 4 * self.noise_std_eff])
+
+        fig.tight_layout()
+        fig.savefig('fig/plot_marginals.png', format='png', dpi=dpi)
+        plt.show()
+
+        return 0

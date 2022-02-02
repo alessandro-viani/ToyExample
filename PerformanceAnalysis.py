@@ -25,11 +25,10 @@ for idx, _n in enumerate(noise_std):
         pickle.dump([sourcespace, data, _n], f)
 
     post_prop = Posterior(num_evolution=None, mean_evolution=True, std_evolution=True,
-                          amp_evolution=True, noise_evolution=False, sequence_evolution=None,
+                          amp_evolution=True, prop_method=True, sequence_evolution=None,
                           mh_evolution=False, sourcespace=sourcespace, data=data,
                           max_exp=1, n_particles=n_particles, max_num=10, noise_std_eff=_n / 2,
-                          prior_num=0.25, prior_m=[-5, 5], prior_s=[0.1, 10], prior_a=[1, 0.25], prior_n=[2, 4],
-                          prop_method=True)
+                          prior_num=0.25, prior_m=[-5, 5], prior_s=[0.1, 10], prior_a=[1, 0.25], prior_n=[2, 4])
 
     post_prop = post_prop.perform_smc()
 
@@ -37,11 +36,10 @@ for idx, _n in enumerate(noise_std):
         pickle.dump(post_prop, f)
 
     post_clas = Posterior(num_evolution=None, mean_evolution=True, std_evolution=True,
-                          amp_evolution=True, noise_evolution=True, sequence_evolution=None,
+                          amp_evolution=True, prop_method=False, sequence_evolution=None,
                           mh_evolution=False, sourcespace=sourcespace, data=data,
                           max_exp=1, n_particles=n_particles, max_num=10, noise_std_eff=_n / 2,
-                          prior_num=0.25, prior_m=[-5, 5], prior_s=[0.1, 10], prior_a=[1, 0.25], prior_n=[2, 4],
-                          prop_method=False)
+                          prior_num=0.25, prior_m=[-5, 5], prior_s=[0.1, 10], prior_a=[1, 0.25], prior_n=[2, 4])
 
     post_clas = post_clas.perform_smc()
     post_clas.noise_posterior = stats.gaussian_kde(post_clas.vector_noise_std,

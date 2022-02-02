@@ -36,9 +36,10 @@ class Particle(object):
        amp_evolution : :py:class:`bool`
            True: the amplitude is one of the parameters to be estimated,
            False: the amplitude is fixed as the true amplitude value [works with one gaussian only].
-       noise_evolution : :py:class:`bool`
+       prop_method : :py:class:`bool`
            True: the noise standard deviation is one of the parameters to be estimated,
-           False: the noise standard deviation is fixed as the estimated noise standard deviation value.
+           False: the noise standard deviation is fixed as the estimated noise standard deviation value and at the very
+                  last iteration recycle scheme and noise posterior are estimated using the proposed method.
        prior_num : :py:class:`double`
            The mean for the poisson prior on the gaussian number.
        prior_m : :py:class:`np.array([double, double])`
@@ -53,8 +54,8 @@ class Particle(object):
         Attributes
         ----------
        noise_std : :py:class:`double`
-           The noise standard deviation sampled if noise_evolution is True,
-           or the noise standard deviation estimated if noise_evolution is False.
+           The noise standard deviation sampled if prop_method is True,
+           or the noise standard deviation estimated if prop_method is False.
        q_death : :py:class:`double`
            The probability of gaussian death.
        q_birth : :py:class:`double`
@@ -72,7 +73,7 @@ class Particle(object):
            [useless if the particle is alone, but useful for performing SMC samplers].
        """
     def __init__(self, n_gaus=None, noise_std_eff=None,
-                 num_evolution=None, mean_evolution=True, std_evolution=True, amp_evolution=True, noise_evolution=False,
+                 num_evolution=None, mean_evolution=True, std_evolution=True, amp_evolution=True, prop_method=False,
                  prior_num=None, prior_m=None, prior_s=None, prior_a=None, prior_n=None):
         self.n_gaus = n_gaus
         self.noise_std_eff = noise_std_eff
@@ -81,7 +82,7 @@ class Particle(object):
         self.mean_evolution = mean_evolution
         self.std_evolution = std_evolution
         self.amp_evolution = amp_evolution
-        self.noise_evolution = noise_evolution
+        self.prop_method = prop_method
 
         self.prior_num = prior_num
         self.prior_m = prior_m
@@ -113,7 +114,7 @@ class Particle(object):
                 prior *= self.amp_prior(_g.amp)
         if self.num_evolution is None:
             prior *= self.num_prior(self.n_gaus)
-        if self.noise_evolution:
+        if self.prop_method:
             prior *= self.noise_prior(self.noise_std)
 
         return prior
@@ -173,7 +174,7 @@ class Particle(object):
             return self.prior_a[0] + self.prior_a[1] * np.random.normal(0, 1)
 
     def inizialize_noise_std(self):
-        if self.noise_evolution:
+        if self.prop_method:
             return np.random.gamma(shape=self.prior_n[0], scale=self.noise_std_eff * self.prior_n[1])
         else:
             return self.noise_std_eff
