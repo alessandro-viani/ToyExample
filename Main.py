@@ -21,9 +21,9 @@ post = Posterior(num_evolution=None, mean_evolution=True, std_evolution=True,
                  prior_num=0.25, prior_m=[-5, 5], prior_s=[0.1, 10], prior_a=[1, 0.25], prior_n=[2, 4])
 
 post = post.perform_smc()
-# ciao
-# with open('save_folder/posterior.pkl', 'wb') as f:
-#    pickle.dump(post, f)
+
+with open('save_folder/posterior.pkl', 'wb') as f:
+    pickle.dump(post, f)
 
 post.plot_data()
 post.plot_marginals()
