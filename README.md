@@ -66,7 +66,6 @@ Moreover we assume independence between data, obtaining a simple factorization f
 
 ![plot_marginals](https://user-images.githubusercontent.com/57596360/152060533-a6278473-1fbb-430c-8c1e-89345d9d841c.png)
 > The image shows an example marginals obtained using the proposed method. Notice that the poterior for the noise standard deviation is not obtained as histogram plot due to the fact that the variable is not sampled but the posterior is approximated during the iteration as explained in [^1].
-
 <\p>
   
 [^1]: My reference to be added.
@@ -112,7 +111,13 @@ The main file contains all nedeed for running the code setting the parameters of
 
 ## Util file
 
-Contains all utilities used in the Classes: Particle and Posterior
+Contains all utilities used in the Classes: Particle and Posterior. Moreover it contains the function forcreating the data utilised for performing the SMC samplers algorithm.
+  
+The creation of the data is demanded to the function *creation_data* that takes as input the mean, standard deviation and amplitude of each gaussian as an array as long as other parameters.
+  
+Example: for creating a data coming form the superpostion of two Gaussians with mean -2 and 2, standard deviation 1 and 0.5 and amplitude 0.7 and 0.3 in the range [-5,5] one just use the function as follows:
+  
+> creation_data(n_data=100, mean=[-2,2], std=[1, 0.5], amp=[0.7,0.3], min_max_sour=[-5,5])
 
 ## Analysis
 
