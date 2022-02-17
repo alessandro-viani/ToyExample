@@ -383,17 +383,6 @@ class Posterior(object):
 
         return self
 
-    def plot_data(self, linewidth=2, linestyle='-', color='k', alpha=0.6, dpi=1000):
-        plt.figure(figsize=(16, 9), dpi=100)
-        x = np.linspace(-5, 5, 1000)
-        y = 0.7 * stats.norm.pdf(x, -2, 1) + 0.3 * stats.norm.pdf(x, 2, 0.5)
-        plt.plot(self.sourcespace, self.data, '.', color='#1f77b4', markersize=7)
-        plt.plot(x, y, linestyle=linestyle, color=color, linewidth=linewidth, alpha=alpha)
-        plt.savefig('fig/data.png', format='png', dpi=dpi)
-        plt.close()
-
-        return 0
-
     def plot_marginals(self,
                        min_mean=-3, max_mean=3, min_std=0, max_std=1.5,
                        min_amp=0, max_amp=1, alpha=0.5, kde=False, dpi=1000):
