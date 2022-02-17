@@ -21,10 +21,9 @@ def sequence_of_exponents(n_iter, max_exp):
 
 
 def creation_data(n_data=100, mean=[-2,2], std=[1, 0.5], amp=[0.7,0.3], 
-                  min_soucespace=-5, max_sourcespace=5, noise_std=None,
-                  linewidth=2, linestyle='-', color='k', alpha=0.6, dpi=1000, 
-                  show_fig=False):
-    sourcespace = np.linspace(min_soucespace, max_sourcespace, n_data)
+                  min_max_sour=[-5,5], noise_std=None, linewidth=2, linestyle='-', 
+                  color='k', alpha=0.6, dpi=1000, show_fig=False):
+    sourcespace = np.linspace(min_max_sour[0], min_max_sour[1], n_data)
     data = np.zeros(int(n_data))
     for i in range(n_data):
         data[i] = np.sum(amp * stats.norm.pdf(sourcespace[i], mean, std)) + np.random.normal(0, noise_std)
