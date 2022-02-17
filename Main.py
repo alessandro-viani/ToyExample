@@ -10,7 +10,8 @@ from SMC import Posterior
 from Util import creation_data
 
 true_noise_std = 0.05
-sourcespace, data = creation_data(n_data=10, noise_std=true_noise_std)
+sourcespace, data = creation_data(n_data=100, mean=[-2,2], std=[1, 0.5], amp=[0.7,0.3], 
+                  min_soucespace=-5, max_sourcespace=5, noise_std=true_noise_std, show_fig=False)
 with open('save_folder/data.pkl', 'wb') as f:
     pickle.dump([sourcespace, data], f)
 
@@ -25,5 +26,4 @@ post = post.perform_smc()
 with open('save_folder/posterior.pkl', 'wb') as f:
     pickle.dump(post, f)
 
-post.plot_data()
-post.plot_marginals()
+post.plot_marginals(show_fig=True)
