@@ -9,6 +9,7 @@ import pickle
 
 import numpy as np
 import scipy.stats as stats
+import matplotlib.pyplot as plt
 
 
 def log_normal(x, mean, std):
@@ -19,13 +20,28 @@ def sequence_of_exponents(n_iter, max_exp):
     return np.concatenate((np.power(np.linspace(0, 1, n_iter), 4), [max_exp + 0.1]))
 
 
-def creation_data(n_data, noise_std):
-    sourcespace = np.linspace(-5, 5, n_data)
+def creation_data(n_data=100, mean=[-2,2], std=[1, 0.5], amp=[0.7,0.3], 
+                  min_soucespace=-5, max_sourcespace=5, noise_std=None,
+                  linewidth=2, linestyle='-', color='k', alpha=0.6, dpi=1000, 
+                  show_fig=False):
+    sourcespace = np.linspace(min_soucespace, max_sourcespace, n_data)
     data = np.zeros(int(n_data))
-    for i in range(0, n_data):
-        data[i] = 0.7 * stats.norm.pdf(sourcespace[i], -2, 1) + \
-                  0.3 * stats.norm.pdf(sourcespace[i], 2, 0.5) + \
-                  np.random.normal(0, noise_std)
+    for i in range(n_data):
+        data[i] = np.sum(amp * stats.norm.pdf(sourcespace[i], mean, std)) + np.random.normal(0, noise_std)
+        
+    plt.figure(figsize=(16, 9), dpi=100)
+    x = np.linspace(-5, 5, 1000)
+    y = np.zeros(len(x))
+    for i in range(len(x)):
+        y[i] = np.sum(amp * stats.norm.pdf(x[i], mean, std))
+    plt.plot(sourcespace, data, '.', color='#1f77b4', markersize=7)
+    plt.plot(x, y, linestyle=linestyle, color=color, linewidth=linewidth, alpha=alpha)
+    plt.savefig('fig/data.png', format='png', dpi=dpi)
+    if show_fig:
+        plt.show()
+    else:
+        plt.close()    
+    
     return sourcespace, data
 
 
