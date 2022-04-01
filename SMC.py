@@ -161,7 +161,7 @@ class Posterior(object):
                 self.particle[idx] = self.particle[idx].mh_std(self)
             if self.amp_evolution:
                 self.particle[idx] = self.particle[idx].mh_amp(self)
-            if self.prop_method:
+            if not self.prop_method:
                 self.particle[idx] = self.particle[idx].mh_noise(self)
         return self
 
