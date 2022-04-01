@@ -114,7 +114,7 @@ class Particle(object):
                 prior *= self.amp_prior(_g.amp)
         if self.num_evolution is None:
             prior *= self.num_prior(self.n_gaus)
-        if self.prop_method:
+        if not self.prop_method:
             prior *= self.noise_prior(self.noise_std)
 
         return prior
@@ -174,7 +174,7 @@ class Particle(object):
             return self.prior_a[0] + self.prior_a[1] * np.random.normal(0, 1)
 
     def inizialize_noise_std(self):
-        if self.prop_method:
+        if not self.prop_method:
             return np.random.gamma(shape=self.prior_n[0], scale=self.noise_std_eff * self.prior_n[1])
         else:
             return self.noise_std_eff
