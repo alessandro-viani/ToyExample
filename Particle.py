@@ -3,10 +3,13 @@
 @author: Alessandro Viani (2022)
 """
 import copy
+
 import numpy as np
 import scipy.stats as stats
+
 from Gaussian import Gaussian
 from Util import log_normal
+
 
 class Particle(object):
     """Single Particle class for SMC samplers.
@@ -84,7 +87,8 @@ class Particle(object):
             log_likelihood = 0
             for idx, _d in enumerate(data):
                 log_likelihood += log_normal(_d,
-                                             self.gaussian.amp * np.exp(log_normal(sourcespace[idx], self.gaussian.mean, self.gaussian.std)),
+                                             self.gaussian.amp * np.exp(
+                                                 log_normal(sourcespace[idx], self.gaussian.mean, self.gaussian.std)),
                                              self.theta)
 
             likelihood = np.exp(exponent_like * log_likelihood)
@@ -124,22 +128,22 @@ class Particle(object):
             theta = np.random.gamma(shape=self.prior_theta[0], scale=self.theta_eff * self.prior_theta[1])
         return theta
 
-    def noise_std_proposal_value(self, actual_noise_std):
+    def theta_proposal_value(self, actual_noise_std):
         return np.random.gamma(shape=100, scale=actual_noise_std / 100)
 
-    def rapp_noise_std_proposal(self, x, x_prop):
+    def rapp_theta_proposal(self, x, x_prop):
         return stats.gamma.pdf(x, a=100, scale=x_prop / 100) / stats.gamma.pdf(x_prop, a=100, scale=x / 100)
 
     def mh_theta(self, post):
         proposal_particle = copy.deepcopy(self)
-        proposal_particle.theta = self.noise_std_proposal_value(self.theta)
+        proposal_particle.theta = self.theta_proposal_value(self.theta)
 
         proposal_particle.like = proposal_particle.evaluation_likelihood(post.sourcespace, post.data,
                                                                          post.exponent_like[-1])
         proposal_particle.prior = proposal_particle.evaluation_prior()
 
         rapp_prior = proposal_particle.prior / self.prior
-        rapp_proposal = self.rapp_noise_std_proposal(self.theta, proposal_particle.theta)
+        rapp_proposal = self.rapp_theta_proposal(self.theta, proposal_particle.theta)
         rapp_like = proposal_particle.like / self.like
 
         if np.random.rand() < min([rapp_prior * rapp_like * rapp_proposal, 1]):

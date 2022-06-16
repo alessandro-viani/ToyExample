@@ -3,14 +3,16 @@
 @author: Alessandro Viani (2022)
 """
 import copy
+import time
+
+import matplotlib.pyplot as plt
 import numpy as np
 import scipy
-import time
-import matplotlib.pyplot as plt
 import seaborn as sns
-import pickle
+
 from Particle import Particle
-from Util import sequence_of_exponents, bin_creation, log_normal
+from Util import sequence_of_exponents, bin_creation
+
 
 class Posterior(object):
     """Single Particle class for SMC samplers.
@@ -20,9 +22,6 @@ class Posterior(object):
            The number of particles for performing SMC samplers.
        theta_eff : :py:class:`double`
            The estimated noise standard deviation.
-       num_evolution : :py:class:`None or int`
-           None: the number is one of the parameters to be estimated,
-           int: it represents the fixed number of gaussian for each particle.
        prop_method : :py:class:`bool`
            True: the noise standard deviation is one of the parameters to be estimated,
            False: the noise standard deviation is fixed as the estimated noise standard deviation value and at the very
@@ -36,8 +35,6 @@ class Posterior(object):
            Noisy samples form the sum of weighted gaussian functions.
        max_exp : :py:class:`int`
            Maximum exponent reached during the SMC samplers iterations.
-       max_num : :py:class:`int`
-           Maximum number of gaussian allowed in each particle.
        prior_mean : :py:class:`np.array([double, double])`
            The interval prior parameters for the uniform prior on gaussian mean.
        prior_theta : :py:class:`np.array([double, double])`
@@ -104,7 +101,7 @@ class Posterior(object):
 
         self.all_particles = np.array([self.particle])
         self.all_weights_unnorm = np.array([np.ones(self.n_particles)])
-        self.all_weights = 1/self.n_particles * np.array([np.ones(self.n_particles)])
+        self.all_weights = 1 / self.n_particles * np.array([np.ones(self.n_particles)])
 
         self.n_iter = None
 
@@ -152,7 +149,7 @@ class Posterior(object):
             _p.weight = weight[idx]
 
         self.ess = np.append(self.ess, 1 / np.sum(np.power(weight, 2)))
-        self.norm_cost = np.append(self.norm_cost, 1/self.n_particles * np.sum(weight_unnorm))
+        self.norm_cost = np.append(self.norm_cost, 1 / self.n_particles * np.sum(weight_unnorm))
 
         return self
 
@@ -279,9 +276,9 @@ class Posterior(object):
         self.all_theta = self.theta_eff / np.sqrt(exponent_like)
 
         self.theta_prior = Particle(theta_eff=self.theta_eff,
-                     prop_method=self.prop_method,
-                     prior_mean=self.prior_mean,
-                     prior_theta=self.prior_theta).theta_prior(self.all_theta)
+                                    prop_method=self.prop_method,
+                                    prior_mean=self.prior_mean,
+                                    prior_theta=self.prior_theta).theta_prior(self.all_theta)
 
         delta_std = np.zeros(len(self.all_theta))
         delta_std[0] = abs(self.all_theta[0] - self.all_theta[1])
@@ -295,9 +292,10 @@ class Posterior(object):
 
         weight_upgrade = 0.5 * delta_std * k * self.theta_prior * norm_cost
 
-        for t_idx in range(self.n_iter-2):
+        for t_idx in range(self.n_iter - 2):
             for p_idx in range(self.n_particles):
-                integral_weight_u = np.append(integral_weight_u, self.all_weights[t_idx + 2:, p_idx] * weight_upgrade[t_idx])
+                integral_weight_u = np.append(integral_weight_u,
+                                              self.all_weights[t_idx + 2:, p_idx] * weight_upgrade[t_idx])
                 p_aux = copy.deepcopy(self.all_particles[t_idx + 2, p_idx])
                 self.particle_avg = np.append(self.particle_avg, p_aux)
 
@@ -308,7 +306,8 @@ class Posterior(object):
             _p.weight = integral_weight[idx]
 
         self.theta_likelihood = norm_cost * k
-        self.theta_posterior = self.theta_prior * self.theta_likelihood / np.sum(self.theta_prior * self.theta_likelihood)
+        self.theta_posterior = self.theta_prior * self.theta_likelihood / np.sum(
+            self.theta_prior * self.theta_likelihood)
 
         return self
 
@@ -327,44 +326,35 @@ class Posterior(object):
                     weight_bin[i] += _p.weight
         self.map_mean = center_bin[np.argmax(weight_bin)]
 
-
     def theta_estimates(self):
         if self.prop_method:
-
             integral = 0
             self.pm_theta = 0
             self.grid_theta = np.unique(
-                                np.sort(
-                                    np.append(self.all_theta,
-                                              np.linspace(np.min(self.all_theta),
-                                                          np.max(self.all_theta),
-                                                          int(self.point_spline)))))
-            # self.theta_posterior_int = scipy.interpolate.splev(self.grid_theta,
-            #                                                       scipy.interpolate.splrep(self.all_theta[::-1],
-            #                                                                                self.theta_posterior[::-1]))
+                np.sort(
+                    np.append(self.all_theta,
+                              np.linspace(np.min(self.all_theta),
+                                          np.max(self.all_theta),
+                                          int(self.point_spline)))))
             self.theta_posterior_int = scipy.interpolate.interp1d(self.all_theta,
                                                                   self.theta_posterior,
                                                                   kind='linear')(self.grid_theta)
-            # self.theta_likelihood_int = scipy.interpolate.splev(self.grid_theta,
-            #                                                         scipy.interpolate.splrep(self.all_theta[::-1],
-            #                                                                                self.theta_likelihood[::-1]))
             self.theta_likelihood_int = scipy.interpolate.interp1d(self.all_theta,
-                                                                  self.theta_likelihood,
-                                                                  kind='linear')(self.grid_theta)
+                                                                   self.theta_likelihood,
+                                                                   kind='linear')(self.grid_theta)
 
             delta = np.abs(self.grid_theta[:-1] - self.grid_theta[1:])
 
             integral = 0.5 * np.sum((self.theta_posterior_int[:-1] + self.theta_posterior_int[1:]) * delta)
 
-
             self.pm_theta = 0.5 * np.sum((self.grid_theta[:-1] * self.theta_posterior_int[:-1] +
-                                         self.grid_theta[1:] * self.theta_posterior_int[1:]) * delta)
+                                          self.grid_theta[1:] * self.theta_posterior_int[1:]) * delta)
 
-            #conditional mean
+            # conditional mean
             self.pm_theta /= integral
-            #maximum a posteriori
+            # maximum a posteriori
             self.map_theta = self.grid_theta[np.argmax(self.theta_posterior_int)]
-            #maximum likelihood
+            # maximum likelihood
             self.ml_theta = self.grid_theta[np.argmax(self.theta_likelihood_int)]
 
         else:
@@ -380,22 +370,21 @@ class Posterior(object):
                         weight_bin_theta[idx] += self.vector_weight[jdx]
             self.map_theta = center_bin_theta[np.argmax(weight_bin_theta)]
 
-
     def empirical_bayes(self):
-        aux_alpha = np.power(self.theta_eff/self.ml_theta, 2)
+        aux_alpha = np.power(self.theta_eff / self.ml_theta, 2)
 
         self.idx_max = 0
-        while self.exponent_like[self.idx_max] < aux_alpha and self.idx_max<=self.n_iter+1:
-            self.idx_max +=1
-        self.idx_max -=1
+        while self.exponent_like[self.idx_max] < aux_alpha and self.idx_max <= self.n_iter + 1:
+            self.idx_max += 1
+        self.idx_max -= 1
 
         posterior_eb = Posterior(prop_method=True,
-                    sourcespace=self.sourcespace,
-                    data=self.data,
-                    n_particles=self.n_particles,
-                    theta_eff=self.theta_eff,
-                    prior_mean=self.prior_mean,
-                    prior_theta=self.prior_theta)
+                                 sourcespace=self.sourcespace,
+                                 data=self.data,
+                                 n_particles=self.n_particles,
+                                 theta_eff=self.theta_eff,
+                                 prior_mean=self.prior_mean,
+                                 prior_theta=self.prior_theta)
 
         for idx, _p in enumerate(self.all_particles[self.idx_max]):
             posterior_eb.particle[idx] = copy.deepcopy(_p)

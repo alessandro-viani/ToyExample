@@ -3,6 +3,7 @@
 @author: Alessandro Viani (2022)
 """
 
+
 class Gaussian(object):
     """Single current dipole class for SESAME.
    Parameters
@@ -14,6 +15,7 @@ class Gaussian(object):
    amp : :py:class:`double`
        The gaussian amplitude or weight.
    """
+
     def __init__(self, mean=None, std=None, amp=None):
         self.mean = mean
         self.std = std
