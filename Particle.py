@@ -1,64 +1,28 @@
 # -*- coding: utf-8 -*-
 """
-@author: Alessandro Viani (2022)
+Created on Wed May 11 09:48:51 2022
+
+@author: viani
 """
 import copy
-
 import numpy as np
 import scipy.stats as stats
-
 from Gaussian import Gaussian
 from Util import log_normal
 
-
 class Particle(object):
-    """Single Particle class for SMC samplers.
-    Parameters
-    ----------
-    theta_eff : :py:class:`double`
-        The estimated noise standard deviation.
-    mean_evolution : :py:class:`bool`
-        True: the mean is one of the parameters to be estimated,
-        False: the mean is fixed as the true mean value [works with one gaussian only].
-    prop_method : :py:class:`bool`
-        True: the noise standard deviation is one of the parameters to be estimated,
-        False: the noise standard deviation is fixed as the estimated noise standard deviation value and at the very
-               last iteration recycle scheme and noise posterior are estimated using the proposed method.
-    prior_mean : :py:class:`np.array([double, double])`
-        The interval prior parameters for the uniform prior on gaussian mean.
-    prior_theta : :py:class:`np.array([double, double])`
-        The shape and scale parameters prior parameters for the gamma prior on noise standard deviation.
-     Attributes
-     ----------
-    noise_std : :py:class:`double`
-        The noise standard deviation sampled if prop_method is True,
-        or the noise standard deviation estimated if prop_method is False.
-    q_death : :py:class:`double`
-        The probability of gaussian death.
-    q_birth : :py:class:`double`
-        The probability of gaussian birth.
-    gaussian : :py:class:`np.array([Gaussian])`
-        The array containing particle gaussians.
-    like : :py:class:`double`
-        The likelihood of the particle.
-    prior : :py:class:`double`
-        The prior of the particle.
-    weight : :py:class:`double`
-        The weight of the particle.
-    weight_unnorm : :py:class:`double`
-        The weight un-normalized of the particle
-        [useless if the particle is alone, but useful for performing SMC samplers].
-    """
-
-    def __init__(self, theta_eff=None, prop_method=False,
-                 prior_mean=None, prior_theta=None):
+    def __init__(self,
+                 theta_eff=None,
+                 prop_method=False,
+                 prior_mean=None,
+                 prior_theta=None):
         self.theta_eff = theta_eff
         self.prop_method = prop_method
 
         self.prior_mean = prior_mean
         self.prior_theta = prior_theta
 
-        self.theta = self.inizialize_noise_std()
+        self.theta = self.inizialize_theta()
         self.gaussian = Gaussian(self.inizialize_mean(), 1, 1)
         self.like = 1
         self.prior = self.evaluation_prior()
@@ -87,8 +51,7 @@ class Particle(object):
             log_likelihood = 0
             for idx, _d in enumerate(data):
                 log_likelihood += log_normal(_d,
-                                             self.gaussian.amp * np.exp(
-                                                 log_normal(sourcespace[idx], self.gaussian.mean, self.gaussian.std)),
+                                             self.gaussian.amp * np.exp(log_normal(sourcespace[idx], self.gaussian.mean, self.gaussian.std)),
                                              self.theta)
 
             likelihood = np.exp(exponent_like * log_likelihood)
@@ -122,19 +85,19 @@ class Particle(object):
 
         return self
 
-    def inizialize_noise_std(self):
+    def inizialize_theta(self):
         theta = self.theta_eff
         if not self.prop_method:
             theta = np.random.gamma(shape=self.prior_theta[0], scale=self.theta_eff * self.prior_theta[1])
         return theta
 
-    def theta_proposal_value(self, actual_noise_std):
-        return np.random.gamma(shape=100, scale=actual_noise_std / 100)
+    def theta_proposal_value(self, actual_theta):
+        return np.random.gamma(shape=100, scale=actual_theta / 100)
 
     def rapp_theta_proposal(self, x, x_prop):
         return stats.gamma.pdf(x, a=100, scale=x_prop / 100) / stats.gamma.pdf(x_prop, a=100, scale=x / 100)
 
-    def mh_theta(self, post):
+    def mh_noise(self, post):
         proposal_particle = copy.deepcopy(self)
         proposal_particle.theta = self.theta_proposal_value(self.theta)
 

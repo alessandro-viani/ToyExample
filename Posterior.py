@@ -1,92 +1,37 @@
 # -*- coding: utf-8 -*-
 """
-@author: Alessandro Viani (2022)
+Created on Mon May  9 15:36:02 2022
+
+@author: viani
 """
 import copy
-import time
-
-import matplotlib.pyplot as plt
 import numpy as np
 import scipy
+import time
+import matplotlib.pyplot as plt
 import seaborn as sns
-
+import pickle
 from Particle import Particle
-from Util import sequence_of_exponents, bin_creation
+from Util import sequence_of_exponents, bin_creation, log_normal
 
 
 class Posterior(object):
-    """Single Particle class for SMC samplers.
-       Parameters
-       ----------
-       n_particles : :py:class:`int`
-           The number of particles for performing SMC samplers.
-       theta_eff : :py:class:`double`
-           The estimated noise standard deviation.
-       prop_method : :py:class:`bool`
-           True: the noise standard deviation is one of the parameters to be estimated,
-           False: the noise standard deviation is fixed as the estimated noise standard deviation value and at the very
-                  last iteration recycle scheme and noise posterior are estimated using the proposed method.
-       sequence_evolution : :py:class:`None or int`
-           None: exponent of the sequence are adaptively chosen,
-           int: number of iterations of Importance sampling.
-       sourcespace : :py:class:`np.array([double])`
-           Grid of x-axes points where data are collected.
-       data : :py:class:`np.array([double])`
-           Noisy samples form the sum of weighted gaussian functions.
-       max_exp : :py:class:`int`
-           Maximum exponent reached during the SMC samplers iterations.
-       prior_mean : :py:class:`np.array([double, double])`
-           The interval prior parameters for the uniform prior on gaussian mean.
-       prior_theta : :py:class:`np.array([double, double])`
-           The shape and scale parameters prior parameters for the gamma prior on noise standard deviation.
-        Attributes
-        ----------
-       ess : :py:class:`np.array([double])`
-           The noise standard deviation sampled if prop_method is True,
-           or the noise standard deviation estimated if prop_method is False.
-       q_death : :py:class:`double`
-           The probability of gaussian death.
-       q_birth : :py:class:`double`
-           The probability of gaussian birth.
-       gaussian : :py:class:`np.array([Gaussian])`
-           The array containing particle gaussians.
-       like : :py:class:`double`
-           The likelihood of the particle.
-       prior : :py:class:`double`
-           The prior of the particle.
-       weight : :py:class:`double`
-           The weight of the particle.
-       weight_unnorm : :py:class:`double`
-           The weight un-normalized of the particle
-           [useless if the particle is alone, but useful for performing SMC samplers].
-       """
 
-    def __init__(self, n_particles=None, theta_eff=None, prop_method=False, sequence_evolution=None,
+    def __init__(self, n_particles=None, theta_eff=None, prop_method=False,
                  sourcespace=None, data=None, prior_mean=[-5, 5], prior_theta=[2, 4],
-                 max_exp=1, ess_min=0.99, ess_max=0.999, delta_min=1e-3, delta_max=1e-1,
+                 max_exp=1, ess_min=0.9, ess_max=0.99, delta_min=1e-3, delta_max=1e-1,
                  point_spline=1e4, n_bins=10, verbose=True):
 
         self.n_particles = int(n_particles)
         self.theta_eff = theta_eff
         self.prop_method = prop_method
-        self.sequence_evolution = sequence_evolution
-
         self.sourcespace = sourcespace
         self.data = data
         self.prior_mean = prior_mean
         self.prior_theta = prior_theta
+        self.interpolating_kind = 'linear'
 
-        self.max_exp = max_exp
-        self.ess_max = ess_max
-        self.ess_min = ess_min
-        self.delta_min = delta_min
-        self.delta_max = delta_max
-
-        self.point_spline = point_spline
-        self.n_bins = n_bins
-        self.verbose = verbose
-
-        self.exponent_like = np.array([0, 0])
+        self.exponent_like = np.array([0.0, 0.0])
         self.ess = self.n_particles
         self.norm_cost = 1
         self.mod_sel = []
@@ -103,33 +48,83 @@ class Posterior(object):
         self.all_weights_unnorm = np.array([np.ones(self.n_particles)])
         self.all_weights = 1 / self.n_particles * np.array([np.ones(self.n_particles)])
 
+        self.all_theta = None
         self.n_iter = None
 
-        self.all_theta = None
         self.grid_theta = None
         self.theta_prior = None
         self.theta_posterior = None
         self.theta_likelihood = None
-        self.theta_posterior_int = None
-        self.theta_likelihood_int = None
-
         self.ml_theta = None
         self.map_theta = None
         self.pm_theta = None
         self.map_mean = None
         self.pm_mean = None
+        self.point_spline = point_spline
 
         self.particle_avg = []
         self.vector_mean = []
         self.vector_theta = []
         self.vector_weight = []
         self.cpu_time = None
+        self.verbose = verbose
+        self.max_exp = max_exp
+        self.sequence_evolution = None
+        self.ess_max = ess_max
+        self.ess_min = ess_min
+        self.delta_max = delta_max
+        self.delta_min = delta_min
+        self.n_bins = n_bins
 
     def metropolis_hastings(self):
         for idx, _p in enumerate(self.particle):
             self.particle[idx] = self.particle[idx].mh_mean(self)
             if not self.prop_method:
-                self.particle[idx] = self.particle[idx].mh_theta(self)
+                self.particle[idx] = self.particle[idx].mh_noise(self)
+        return self
+
+    def mcmc(self):
+        self.particle[0] = self.starting_chain
+        self.exponent_like[-1] = 1
+        self.particle[0].like = self.particle[0].evaluation_likelihood(self.sourcespace,
+                                                                       self.data,
+                                                                       self.exponent_like[-1])
+        for idx, _p in enumerate(self.particle[0:-1]):
+            self.particle[idx + 1] = _p.mh_mean(self)
+        self.vector_post()
+        return self
+
+    def expetation_maximization(self):
+        start_time = time.time()
+        self.n_particles_mcmc = 1e2
+        self.n_run_mcmc = 20
+        n_run_mh = 20
+        delta = 1e-8 + np.zeros(n_run_mh + 1)
+        for idx in range(self.n_run_mcmc):
+            theta = np.array([self.theta_eff])
+            starting_chain = Particle(theta_eff=theta[0],
+                                      prior_mean=self.prior_mean,
+                                      prior_theta=self.prior_theta)
+            for i in range(self.n_run_mcmc):
+                post = Posterior(prop_method=True,
+                                 sourcespace=self.sourcespace,
+                                 data=self.data,
+                                 n_particles=self.n_particles_mcmc,
+                                 theta_eff=theta[-1],
+                                 prior_mean=self.prior_mean,
+                                 prior_theta=self.prior_theta)
+
+                post.starting_chain = starting_chain
+                post = post.mcmc()
+                starting_chain = post.particle[-1]
+                H = 0
+                for _p in post.particle:
+                    xi = np.exp(log_normal(self.sourcespace, _p.gaussian.mean, 1))
+                    H += - len(post.data) / theta[-1] - 1 / (2 * np.square(theta[-1])) * np.sum(
+                        np.square(post.data - xi))
+                H /= post.n_particles
+                theta = np.append(theta, np.abs(theta[-1] + delta[i] * H))
+        time.time() - start_time
         return self
 
     def importance_sampling(self, next_alpha):
@@ -233,9 +228,11 @@ class Posterior(object):
         self = self.importance_sampling(self.exponent_like[-1])
 
         self.all_particles = np.concatenate([self.all_particles, np.array([self.particle])], axis=0)
-        self.all_weights_unnorm = np.concatenate(
-            [self.all_weights_unnorm, np.array([[_p.weight_unnorm for _p in self.particle]])], axis=0)
-        self.all_weights = np.concatenate([self.all_weights, np.array([[_p.weight for _p in self.particle]])])
+        self.all_weights_unnorm = np.concatenate([self.all_weights_unnorm,
+                                                  np.array([[_p.weight_unnorm for _p in self.particle]])],
+                                                 axis=0)
+        self.all_weights = np.concatenate([self.all_weights,
+                                           np.array([[_p.weight for _p in self.particle]])])
 
         n = 1
         while self.exponent_like[-1] <= 1:
@@ -304,7 +301,8 @@ class Posterior(object):
         for idx, _p in enumerate(self.particle_avg):
             _p.weight_unnorm = integral_weight_u[idx]
             _p.weight = integral_weight[idx]
-
+            
+        self.ess_big = 1/np.sum(integral_weight**2)
         self.theta_likelihood = norm_cost * k
         self.theta_posterior = self.theta_prior * self.theta_likelihood / np.sum(
             self.theta_prior * self.theta_likelihood)
@@ -328,6 +326,7 @@ class Posterior(object):
 
     def theta_estimates(self):
         if self.prop_method:
+
             integral = 0
             self.pm_theta = 0
             self.grid_theta = np.unique(
@@ -336,31 +335,39 @@ class Posterior(object):
                               np.linspace(np.min(self.all_theta),
                                           np.max(self.all_theta),
                                           int(self.point_spline)))))
-            self.theta_posterior_int = scipy.interpolate.interp1d(self.all_theta,
-                                                                  self.theta_posterior,
-                                                                  kind='linear')(self.grid_theta)
-            self.theta_likelihood_int = scipy.interpolate.interp1d(self.all_theta,
-                                                                   self.theta_likelihood,
-                                                                   kind='linear')(self.grid_theta)
+
+            self.theta_prior = Particle(theta_eff=self.theta_eff,
+                                        prop_method=self.prop_method,
+                                        prior_mean=self.prior_mean,
+                                        prior_theta=self.prior_theta).theta_prior(self.grid_theta)
+
+            self.theta_posterior = scipy.interpolate.interp1d(self.all_theta,
+                                                              self.theta_posterior,
+                                                              kind=self.interpolating_kind)(self.grid_theta)
+
+            self.theta_likelihood = scipy.interpolate.interp1d(self.all_theta,
+                                                               self.theta_likelihood,
+                                                               kind=self.interpolating_kind)(self.grid_theta)
 
             delta = np.abs(self.grid_theta[:-1] - self.grid_theta[1:])
 
-            integral = 0.5 * np.sum((self.theta_posterior_int[:-1] + self.theta_posterior_int[1:]) * delta)
+            integral = 0.5 * np.sum((self.theta_posterior[:-1] + self.theta_posterior[1:]) * delta)
 
-            self.pm_theta = 0.5 * np.sum((self.grid_theta[:-1] * self.theta_posterior_int[:-1] +
-                                          self.grid_theta[1:] * self.theta_posterior_int[1:]) * delta)
+            self.pm_theta = 0.5 * np.sum((self.grid_theta[:-1] * self.theta_posterior[:-1] +
+                                          self.grid_theta[1:] * self.theta_posterior[1:]) * delta)
 
             # conditional mean
             self.pm_theta /= integral
+
             # maximum a posteriori
-            self.map_theta = self.grid_theta[np.argmax(self.theta_posterior_int)]
+            self.map_theta = self.grid_theta[np.argmax(self.theta_posterior)]
+
             # maximum likelihood
-            self.ml_theta = self.grid_theta[np.argmax(self.theta_likelihood_int)]
+            self.ml_theta = self.grid_theta[np.argmax(self.theta_likelihood)]
 
         else:
-            left_bin_theta, center_bin_theta, right_bin_theta = bin_creation(np.array([np.min(self.vector_theta),
-                                                                                       np.max(self.vector_theta)]),
-                                                                             self.n_bins)
+            left_bin_theta, center_bin_theta, right_bin_theta = bin_creation(
+                np.array([np.min(self.vector_theta), np.max(self.vector_theta)]), self.n_bins)
             weight_bin_theta = np.zeros(self.n_bins)
             self.pm_theta = np.sum(np.array(self.vector_theta) * np.array(self.vector_weight))
 
@@ -378,32 +385,29 @@ class Posterior(object):
             self.idx_max += 1
         self.idx_max -= 1
 
-        posterior_eb = Posterior(prop_method=True,
-                                 sourcespace=self.sourcespace,
-                                 data=self.data,
-                                 n_particles=self.n_particles,
-                                 theta_eff=self.theta_eff,
-                                 prior_mean=self.prior_mean,
-                                 prior_theta=self.prior_theta)
+        self.posterior_eb = Posterior(prop_method=True,
+                                      sourcespace=self.sourcespace,
+                                      data=self.data,
+                                      n_particles=self.n_particles,
+                                      theta_eff=self.theta_eff,
+                                      prior_mean=self.prior_mean,
+                                      prior_theta=self.prior_theta)
 
         for idx, _p in enumerate(self.all_particles[self.idx_max]):
-            posterior_eb.particle[idx] = copy.deepcopy(_p)
+            self.posterior_eb.particle[idx] = copy.deepcopy(_p)
 
-        posterior_eb = posterior_eb.importance_sampling(next_alpha=aux_alpha)
+        self.posterior_eb = self.posterior_eb.importance_sampling(next_alpha=aux_alpha)
 
-        posterior_eb.pm_smc = self.pm_theta
-        posterior_eb.map_smc = self.map_theta
+        self.posterior_eb.pm_smc = self.pm_theta
+        self.posterior_eb.map_smc = self.map_theta
 
-        posterior_eb.grid_theta = self.grid_theta
-        posterior_eb.all_theta = self.all_theta
-        posterior_eb.theta_posterior = self.theta_posterior
-        posterior_eb.theta_posterior_int = self.theta_posterior_int
-        posterior_eb.ml_theta = self.ml_theta
-        posterior_eb.map_theta = self.map_theta
-        posterior_eb.particle_avg = posterior_eb.particle
-        posterior_eb.vector_post()
-
-        self.posterior_eb = posterior_eb
+        self.posterior_eb.grid_theta = self.grid_theta
+        self.posterior_eb.all_theta = self.all_theta
+        self.posterior_eb.theta_posterior = self.theta_posterior
+        self.posterior_eb.ml_theta = self.ml_theta
+        self.posterior_eb.map_theta = self.map_theta
+        self.posterior_eb.particle_avg = self.posterior_eb.particle
+        self.posterior_eb.vector_post()
 
         return self
 
@@ -424,52 +428,49 @@ class Posterior(object):
 
         return self
 
-    def plot_marginals(self, linewidth=1, alpha=0.5, dpi=300, plot_show=False):
-
-        color_map = ['#1f77b4', 'darkorange', 'forestgreen', 'red']
-        color_hist = 0
+    def plot_data(self, size_ticks=22, saturation=0.7, linewidth=1, dpi=100, plot_show=True):
         sns.set_style('darkgrid')
-        fig, ax = plt.subplots(1, 3, figsize=(16, 4))
-
+        plt.figure(figsize=(16, 9), dpi=100)
         x = np.linspace(-5, 5, 1000)
         y = 1 * scipy.stats.norm.pdf(x, 0, 1)
-        ax[0].plot(self.sourcespace, self.data, '.', color='#1f77b4', markersize=7)
-        ax[0].plot(x, y, linestyle='-', color='k', linewidth=linewidth, alpha=alpha)
-        ax[0].set_title('Data')
-        ax[0].set_xlabel(r'$x$')
-        ax[0].set_ylabel(r'$y$')
-
-        sns.histplot(x=self.vector_mean, stat='probability',
-                     weights=self.vector_weight, bins=self.n_bins,
-                     color=color_map[color_hist], alpha=alpha, ax=ax[1])
-        ax[1].set_xlabel(r'$\mu$')
-        ax[1].set_title(r'$p(\mu\mid y)$')
-        # ax[1].set_xlim(self.prior_mean)
-        ax[1].set_ylabel('', fontsize=0)
-
-        if self.prop_method:
-            ax[2].plot(self.all_theta, self.theta_posterior, '.',
-                       color=color_map[color_hist])
-            ax[2].fill_between(self.grid_theta, self.theta_posterior_int,
-                               color=color_map[color_hist], alpha=alpha)
-            ax[2].plot(self.grid_theta, self.theta_posterior_int, '-')
-            ax[2].set_xlim([np.min(self.all_theta), np.max(self.all_theta)])
-            plt.sca(ax[2])
-        else:
-            sns.set_style('darkgrid')
-            sns.histplot(x=self.vector_theta, stat='probability',
-                         weights=self.vector_weight, bins=self.n_bins,
-                         color=color_map[color_hist], alpha=alpha, ax=ax[2])
-            ax[2].set_ylabel('', fontsize=0)
-
-        ax[2].set_xlabel(r'$\theta$')
-        ax[2].set_title(r'$p(\theta\mid y)$')
-        fig.tight_layout()
-        if self.prop_method:
-            fig.savefig('fig/plot_marginals_prop_method.png', format='png', dpi=dpi)
-        else:
-            fig.savefig('fig/plot_marginals_fully_bayesian.png', format='png', dpi=dpi)
+        plt.plot(self.sourcespace, self.data, '.', color='#1f77b4', markersize=7)
+        plt.plot(x, y, linestyle='-', color='k', linewidth=linewidth, alpha=saturation)
+        plt.xticks(size=size_ticks)
+        plt.yticks(size=size_ticks)
+        plt.savefig('fig/data_toy.png', format='png', dpi=dpi)
         if plot_show:
             plt.show()
         else:
             plt.close()
+
+    def plot_marginals(self, alpha=0.5, dpi=100):
+        color_map = ['#1f77b4', 'darkorange', 'forestgreen', 'red']
+        color_hist = 0
+        sns.set_style('darkgrid')
+        fig, ax = plt.subplots(1, 2, figsize=(16, 9))
+        sns.histplot(x=self.vector_mean, stat='probability',
+                     weights=self.vector_weight, bins=self.n_bins,
+                     color=color_map[color_hist], alpha=alpha, ax=ax[0])
+
+        if self.prop_method:
+            ax[1].plot(self.grid_theta, self.theta_posterior,
+                       color=color_map[color_hist], alpha=alpha)
+            ax[1].fill_between(self.grid_theta, self.theta_posterior,
+                               color=color_map[color_hist], alpha=alpha * 0.25)
+            ax[1].set_xlim([np.min(self.all_theta), np.max(self.all_theta)])
+
+            plt.sca(ax[1])
+            plt.xticks([self.theta_eff, 2 * self.theta_eff, 4 * self.theta_eff])
+        else:
+            sns.set_style('darkgrid')
+            sns.histplot(x=self.vector_theta, stat='probability',
+                         weights=self.vector_weight, bins=self.n_bins,
+                         color=color_map[color_hist], alpha=alpha, ax=ax[1])
+
+        ax[0].set_xlabel(r'$\mu$')
+        # ax[0].set_xlim(self.prior_mean)
+        # plt.sca(ax[0])
+        # plt.xticks([-4, -2, 0, 2, 4])
+        fig.tight_layout()
+        fig.savefig('fig/plot_marginals.png', format='png', dpi=dpi)
+        plt.show()
