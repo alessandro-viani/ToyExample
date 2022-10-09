@@ -11,13 +11,11 @@
 
 
 # ToyExample
-This repository contains an example of an inverse problem where the aim is to reconstruct the parameters of an unknown number of weighted Gaussian functions, given noisy measurements of their superposition, i.e.
+This repository contains an example of an inverse problem where the aim is to reconstruct the mean of a Gaussian function, given noisy measurements, i.e.
 
 <p align="center">
-
-<img src="https://latex.codecogs.com/svg.latex?&space;y(t)=\mathcal{N}_{\xi(t)}(\mu,\sigma)+\varepsilon(t)" title="data" />
+<img src="https://latex.codecogs.com/svg.latex?&space;y(t)=\mathcal{N}_{\xi(t)}(\mu,\sigma)+\varepsilon(t)" title="inverse_problem" />
 </p>
-
 <p align="center">
 
 <img src="https://latex.codecogs.com/svg.latex?&space;\varepsilon(t)\sim\mathcal{N}(0,\theta)." title="noise" />
