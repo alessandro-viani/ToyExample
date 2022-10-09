@@ -1,13 +1,13 @@
 ## Required include
 
--import scipy
--import pickle
--import copy
--import time
--import numpy as np
--import matplotlib.pyplot as plt
--import seaborn as sns
--import scipy.stats as stats
+- import scipy
+- import pickle
+- import copy
+- import time
+- import numpy as np
+- import matplotlib.pyplot as plt
+- import seaborn as sns
+- import scipy.stats as stats
 
 
 # ToyExample
