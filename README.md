@@ -25,10 +25,9 @@ We assume observations are available on a given set of points and we want to mak
 
 #### Prior and Likelihood
 
-We consider a uniform prior on the mean location in the interval where data are measured, moreover we assume independence between data at different time points, obtaining a simple factorization for the likelihood
+We consider a truncated Jeffreys prior on the mean location (uniform in the interval where data are measured), moreover we assume independence between data at different time points, obtaining a simple factorization for the likelihood
 
 <p align="center">
-  
 <img src="https://latex.codecogs.com/svg.latex?&space;p^{\theta}(\mathbf{y}\mid\textit{x})=\prod_{t=1}^Tp^{\theta}(y(t)\mid\mu)" title="likelihood"/>
 
 ![plot_marginals](https://user-images.githubusercontent.com/57596360/152060533-a6278473-1fbb-430c-8c1e-89345d9d841c.png)
@@ -37,17 +36,13 @@ We consider a uniform prior on the mean location in the interval where data are 
   
 [^1]: My reference to be added.
 
-## Gaussian file
-
-Contains the class Gaussian, nothing but the parameters of interest of the Gaussian to be reconstructed: apmplitude, mean and variance.
-
 ## Particle file
 
-Contains the class Particle, namely one single sample containing some Gaussian. This class embodies also the functions for the evaluation of the Likelihood and the prior as well as the prior functions definitions. This class takes as input some parameters that are passed by the class SMC therefore we explain them below.
+Contains the class Particle, namely one single sample. This class embodies also the functions for the evaluation of the Likelihood and the Prior. This class takes as input some parameters that are passed by the class Posterior explained below.
 
-## SMC file
+## Posterior file
 
-Contains the class Posterior, namely a collection of Particles as described above. The class takes as parameters some boolean that tells which variables needs to be evolved as well as the parameters for the prior passed to the class Particle.
+Contains the class Posterior, namely a collection of Particles as described above. The class takes as parameter a dictionary _cfg_ containing as instances: the number of particles (n_particles), the estimated noise standard deviation (theta_eff) some boolean that tells which variables needs to be evolved as well as the parameters for the prior passed to the class Particle.
 
 The class contains all functions needed for performing SMC samplers and, if required, also the proposed method where all particles are recycled and the posterior for the parameter _noise standard deviation_ is approximated without any additional computational cost.
 
