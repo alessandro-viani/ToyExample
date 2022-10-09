@@ -32,7 +32,7 @@ We consider a truncated Jeffreys prior on the mean location (uniform in the inte
 
 ![plot_marginals](https://raw.githubusercontent.com/alessandro-viani/ToyExample/main/fig/plot_confront.png)
 > The image shows an example marginals obtained using the proposed method. Notice that the poterior for the noise standard deviation is not obtained as histogram plot due to the fact that the variable is not sampled but the posterior is approximated during the iteration as explained in [^1].
-<\p>
+
   
 [^1]: My reference to be added.
 
