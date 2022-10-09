@@ -1,15 +1,14 @@
 ## Required include
 
-- import copy
-- import time
-- import numpy as np
-- import math as mat
-- import pickle
-- import scipy.stats as stats
-- import matplotlib.pyplot as plt
-- import seaborn as sns
-- from matplotlib.pyplot import figure
-- from random import randint
+-import scipy
+-import pickle
+-import copy
+-import time
+-import numpy as np
+-import matplotlib.pyplot as plt
+-import seaborn as sns
+-import scipy.stats as stats
+
 
 # ToyExample
 This repository contains an example of an inverse problem where the aim is to reconstruct the parameters of an unknown number of weighted Gaussian functions, given noisy measurements of their superposition, i.e.
