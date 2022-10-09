@@ -42,7 +42,7 @@ Contains the class Particle, namely one single sample. This class embodies also 
 
 ## Posterior file
 
-Contains the class Posterior, namely a collection of Particles as described above. The class takes as parameter a dictionary _cfg_ containing as instances: the number of particles (n_particles), the estimated noise standard deviation (theta_eff) some boolean that tells which variables needs to be evolved as well as the parameters for the prior passed to the class Particle.
+Contains the class Posterior, namely a collection of Particles as described above. The class takes as parameter a dictionary _cfg_ containing as instances: the number of particles (n_particles), the estimated noise standard deviation (theta_eff), the interval where data are measured (sourcespace), the measured data (data), some boolean that tells which variables needs to be evolved as well as the parameters for the prior passed to the class Particle.
 
 The class contains all functions needed for performing SMC samplers and, if required, also the proposed method where all particles are recycled and the posterior for the parameter _noise standard deviation_ is approximated without any additional computational cost.
 
