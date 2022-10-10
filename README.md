@@ -23,6 +23,9 @@ This repository contains an example of an inverse problem where the aim is to re
 
 We assume observations are available on a given set of points and we want to make inference on the mean of the Gaussian distribution
 
+![data_toy](https://raw.githubusercontent.com/alessandro-viani/ToyExample/main/fig/data_toy.jpg)
+> The image shows an example of the data given to the algorithm as blue dots.
+
 #### Prior and Likelihood
 
 We consider a truncated Jeffreys prior on the mean location (uniform in the interval where data are measured), moreover we assume independence between data at different time points, obtaining a simple factorization for the likelihood
