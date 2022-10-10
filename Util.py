@@ -39,7 +39,7 @@ def bin_creation(min_interval, max_interval, n_bins):
     return left_bin, center_bin, right_bin
 
 
-def plot_confront(post_pm, post_fb, post_em):
+def plot_confront(post_pm, post_fb, post_em, savefig=True):
     alpha = 0.5
     sns.set_style('darkgrid')
     color_map = ['#1f77b4', 'darkorange', 'forestgreen', 'red']
@@ -56,7 +56,7 @@ def plot_confront(post_pm, post_fb, post_em):
         post_fb.grid_theta[:-1] - post_fb.grid_theta[1:]))
     post_fb.theta_posterior /= integral
 
-    fig, ax = plt.subplots(3, 2, figsize=(16, 9))
+    fig, ax = plt.subplots(3, 2, figsize=(15, 5))
 
     plt.sca(ax[0, 0])
     plt.xlim([min_mu, max_mu])
@@ -79,13 +79,15 @@ def plot_confront(post_pm, post_fb, post_em):
 
     plt.sca(ax[1, 1])
     plt.xlim([min_theta, max_theta])
+    sns.histplot(x=post_fb.vector_theta, stat='density', weights=post_fb.vector_weight, bins=int(0.5*post_fb.n_bins),
+                 color=color_map[1], alpha=alpha)
     plt.plot(post_fb.grid_theta, post_fb.theta_posterior, color=color_map[1], alpha=alpha)
     plt.fill_between(post_fb.grid_theta, post_fb.theta_posterior, color=color_map[1], alpha=alpha * 0.25)
 
     plt.sca(ax[2, 0])
     plt.xlim([min_mu, max_mu])
     plt.ylabel('Expectation Maximization', fontsize=10, rotation=90, labelpad=20)
-    sns.histplot(x=post_em.vector_mean, stat='probability', weights=post_em.vector_weight, bins=post_em.n_bins,
+    sns.histplot(x=post_em.vector_mean, stat='probability', weights=post_em.vector_weight, bins=int(0.5*post_em.n_bins),
                  color=color_map[2], alpha=alpha)
 
     plt.sca(ax[2, 1])
@@ -93,3 +95,5 @@ def plot_confront(post_pm, post_fb, post_em):
     plt.plot(post_em.grid_theta, post_em.theta_posterior, color=color_map[2], alpha=alpha)
     plt.fill_between(post_em.grid_theta, post_em.theta_posterior, color=color_map[2], alpha=alpha * 0.25)
     fig.tight_layout()
+    if savefig:
+        plt.savefig('fig/plot_confront.png', dpi=1000)

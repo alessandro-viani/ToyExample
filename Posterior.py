@@ -36,7 +36,7 @@ class Posterior(object):
             self.data = cfg['data']
 
         if 'n_bins' not in cfg:
-            self.n_bins = 50
+            self.n_bins = 100
         else:
             self.n_bins = cfg['n_bins']
 
@@ -245,7 +245,7 @@ class Posterior(object):
         return self
 
     def map_theta_eval(self):
-        self.grid_theta = np.linspace(0.5 * self.theta_eff, 4 * self.theta_eff, 100)
+        self.grid_theta = np.linspace(0.5 * self.theta_eff, 10 * self.theta_eff, 100)
         self.theta_posterior = np.zeros(len(self.grid_theta))
         for j, _t in enumerate(self.grid_theta):
             self.theta_posterior[j] = self.integral(theta=_t) * scipy.stats.gamma.pdf(_t, a=2,
@@ -274,14 +274,12 @@ class Posterior(object):
         delta_std[-1] = abs(all_theta[-2] - all_theta[-1])
         for i in range(2, len(all_theta)):
             delta_std[i - 1] = abs(all_theta[i - 2] - all_theta[i])
-        k = np.power(np.power(2 * np.pi * np.square(self.theta_eff), exponent_like - 1) * exponent_like,
-                     self.data.shape[0] / 2)
+        k = np.power(np.power(2 * np.pi * np.square(self.theta_eff), exponent_like - 1) * exponent_like, self.data.shape[0] / 2)
         weight_upgrade = 0.5 * delta_std * k * theta_prior(all_theta, self.theta_eff) * norm_cost
 
         for t_idx in range(self.n_iter - 2):
             for p_idx in range(self.n_particles):
-                integral_weight_u = np.append(integral_weight_u,
-                                              self.all_weights[t_idx + 2:, p_idx] * weight_upgrade[t_idx])
+                integral_weight_u = np.append(integral_weight_u, self.all_weights[t_idx + 2:, p_idx] * weight_upgrade[t_idx])
                 particle_aux = np.append(particle_aux, self.all_particles[t_idx + 2, p_idx])
 
         integral_weight = integral_weight_u / np.sum(integral_weight_u)
@@ -293,12 +291,9 @@ class Posterior(object):
         self.ess = 1 / np.sum(integral_weight ** 2)
         self.ml_theta = all_theta[np.argmax(norm_cost * k)]
         self.theta_posterior = theta_prior(all_theta, self.theta_eff) * norm_cost * k
-        self.grid_theta = np.unique(np.sort(np.append(all_theta, np.linspace(np.min(all_theta),
-                                                                             np.max(all_theta), int(1e4)))))
-        self.theta_posterior = scipy.interpolate.interp1d(all_theta, self.theta_posterior, kind='linear')(
-            self.grid_theta)
-        delta = np.abs(self.grid_theta[:-1] - self.grid_theta[1:])
-        integral = 0.5 * np.sum((self.theta_posterior[:-1] + self.theta_posterior[1:]) * delta)
+        self.grid_theta = np.unique(np.sort(np.append(all_theta, np.linspace(np.min(all_theta), np.max(all_theta), int(1e4)))))
+        self.theta_posterior = scipy.interpolate.interp1d(all_theta, self.theta_posterior, kind='linear')(self.grid_theta)
+        integral = 0.5 * np.sum((self.theta_posterior[:-1] + self.theta_posterior[1:]) * np.abs(self.grid_theta[:-1] - self.grid_theta[1:]))
         self.theta_posterior /= integral
 
         return self
@@ -308,7 +303,7 @@ class Posterior(object):
         for _p in self.particle:
             self.pm_mean += _p.mean * _p.weight
 
-        left_bin, center_bin, right_bin = bin_creation(np.min(self.vector_mean), np.max(self.vector_mean), self.n_bins)
+        left_bin, center_bin, right_bin = bin_creation(np.min(self.sourcespace), np.max(self.sourcespace), self.n_bins)
         weight_bin = np.zeros(self.n_bins)
         for i in range(self.n_bins):
             for idx, _p in enumerate(self.particle):
@@ -317,12 +312,12 @@ class Posterior(object):
         self.map_mean = center_bin[np.argmax(weight_bin)]
 
     def theta_estimates(self):
+        n_bins = int(0.5*self.n_bins)
         self.pm_theta = 0
         if self.method == 'PM' or self.method == 'EM':
             # posterior mean
             delta = np.abs(self.grid_theta[:-1] - self.grid_theta[1:])
-            self.pm_theta = 0.5 * np.sum((self.grid_theta[:-1] * self.theta_posterior[:-1] +
-                                          self.grid_theta[1:] * self.theta_posterior[1:]) * delta)
+            self.pm_theta = 0.5 * np.sum((self.grid_theta[:-1] * self.theta_posterior[:-1] + self.grid_theta[1:] * self.theta_posterior[1:]) * delta)
         if self.method == 'PM':
             # maximum a posteriori
             self.map_theta = self.grid_theta[np.argmax(self.theta_posterior)]
@@ -336,10 +331,9 @@ class Posterior(object):
             self.pm_theta = np.sum(np.array(self.vector_weight) * np.array(self.vector_theta))
 
             # maximum a posteriori
-            left_bin_theta, center_bin_theta, right_bin_theta = bin_creation(np.min(self.vector_theta),
-                                                                             np.max(self.vector_theta), self.n_bins)
-            weight_bin_theta = np.zeros(self.n_bins)
-            for idx in range(self.n_bins):
+            left_bin_theta, center_bin_theta, right_bin_theta = bin_creation(np.min(self.vector_theta), np.max(self.vector_theta), n_bins)
+            weight_bin_theta = np.zeros(n_bins)
+            for idx in range(n_bins):
                 for jdx, _n in enumerate(self.vector_theta):
                     if left_bin_theta[idx] <= _n <= right_bin_theta[idx]:
                         weight_bin_theta[idx] += self.vector_weight[jdx]
