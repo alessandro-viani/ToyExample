@@ -33,7 +33,7 @@ We consider a truncated Jeffreys prior on the mean location (uniform in the inte
 <p align="center">
 <img src="https://latex.codecogs.com/svg.latex?&space;p^{\theta}(\mathbf{y}\mid\mu)=\prod_{t=1}^Tp^{\theta}(y(t)\mid\mu)" title="likelihood"/>
 
-![plot_marginals](https://raw.githubusercontent.com/alessandro-viani/ToyExample/main/fig/plot_confront.png)
+![plot_confront](https://raw.githubusercontent.com/alessandro-viani/ToyExample/main/fig/plot_confront.png)
 > The image shows an example marginals obtained using the proposed method. Notice that the poterior for the noise standard deviation is not obtained as histogram plot due to the fact that the variable is not sampled but the posterior is approximated during the iteration as explained in [^1].
 
   
