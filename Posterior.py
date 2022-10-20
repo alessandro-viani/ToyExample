@@ -279,7 +279,7 @@ class Posterior(object):
 
         for t_idx in range(self.n_iter - 2):
             for p_idx in range(self.n_particles):
-                integral_weight_u = np.append(integral_weight_u, self.all_weights[t_idx + 2:, p_idx] * weight_upgrade[t_idx])
+                integral_weight_u = np.append(integral_weight_u, self.all_weights[t_idx + 2, p_idx] * weight_upgrade[t_idx])
                 particle_aux = np.append(particle_aux, self.all_particles[t_idx + 2, p_idx])
 
         integral_weight = integral_weight_u / np.sum(integral_weight_u)
